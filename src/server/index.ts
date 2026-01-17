@@ -1,5 +1,5 @@
 import express from 'express';
-import { InitResponse, IncrementResponse, DecrementResponse } from '../shared/types/api';
+import { InitResponse, IncrementResponse, DecrementResponse, QuizResponse } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
 
@@ -123,6 +123,32 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
     });
   }
 });
+
+// GET /api/quiz?subreddit=SUBREDDIT
+router.get<unknown, QuizResponse | { status: string; message: string }, unknown>(
+  '/api/quiz',
+  async (req, res): Promise<void> => {
+    const subreddit = (req.query.subreddit as string) || 'AskReddit';
+    
+    try {
+      // TODO: Implement actual quiz data fetching from Reddit
+      // For now, return empty quiz data structure
+      const quizResponse: QuizResponse = {
+        quiz: [],
+        isNsfw: false,
+      };
+      
+      res.json(quizResponse);
+    } catch (error) {
+      console.error(`Error fetching quiz for ${subreddit}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quiz data';
+      res.status(500).json({
+        status: 'error',
+        message: errorMessage,
+      });
+    }
+  }
+);
 
 // Use router middleware
 app.use(router);

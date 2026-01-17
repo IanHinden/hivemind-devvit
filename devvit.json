@@ -9,6 +9,7 @@
         "entry": "splash.html"
       },
       "game": {
+        "inline": true,
         "entry": "game.html"
       }
     }
@@ -26,7 +27,7 @@
         "label": "Create a new post",
         "description": "how-hivemind-r-u",
         "location": "subreddit",
-        "forUserType": "moderator",
+        "forUserType": "user",
         "endpoint": "/internal/menu/post-create"
       }
     ]
