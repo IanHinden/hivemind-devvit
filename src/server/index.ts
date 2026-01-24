@@ -2,6 +2,8 @@ import express from 'express';
 import { InitResponse, IncrementResponse, DecrementResponse, QuizResponse } from '../shared/types/api';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post';
+import { fetchQuizData } from './core/quiz';
+import { getCachedQuiz, cacheQuiz, clearCachedQuiz, clearAllQuizCaches } from './core/quizCache';
 
 const app = express();
 
@@ -124,6 +126,110 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
   }
 });
 
+// Debug endpoint to check available reddit methods
+router.get('/api/debug/reddit-methods', async (_req, res): Promise<void> => {
+  try {
+    // Try to inspect what's available on reddit object
+    const prototype = Object.getPrototypeOf(reddit);
+    const prototypeMethods = Object.getOwnPropertyNames(prototype).filter(
+      (name) => typeof (reddit as any)[name] === 'function' && name !== 'constructor'
+    );
+    const staticMethods = Object.keys(reddit).filter(
+      (name) => typeof (reddit as any)[name] === 'function'
+    );
+    const allProperties = Object.getOwnPropertyNames(reddit);
+    
+    // Try calling getCurrentUsername to verify it works
+    const currentUsername = await reddit.getCurrentUsername();
+    
+    // Try to see if there are any methods that might fetch posts
+    const possibleMethods = [
+      'getPosts',
+      'getSubredditPosts',
+      'fetch',
+      'get',
+      'request',
+      'api',
+      'getPost',
+      'getComments',
+    ];
+    
+    const availableMethods: Record<string, boolean> = {};
+    for (const method of possibleMethods) {
+      availableMethods[method] = typeof (reddit as any)[method] === 'function';
+    }
+    
+    res.json({
+      prototypeMethods,
+      staticMethods,
+      allProperties,
+      redditObjectType: typeof reddit,
+      currentUsername,
+      availableMethods,
+      redditObjectKeys: Object.keys(reddit),
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  }
+});
+
+// Clear cache endpoint for testing
+router.post('/api/clear-cache', async (req, res): Promise<void> => {
+  try {
+    const { subreddit } = req.body as { subreddit?: string };
+    
+    if (subreddit) {
+      await clearCachedQuiz(subreddit);
+      res.json({
+        status: 'success',
+        message: `Cache cleared for r/${subreddit}`,
+      });
+    } else {
+      await clearAllQuizCaches();
+      res.json({
+        status: 'success',
+        message: 'All quiz caches cleared',
+      });
+    }
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Failed to clear cache',
+    });
+  }
+});
+
+// Clear cache endpoint for testing
+router.post('/api/clear-cache', async (req, res): Promise<void> => {
+  try {
+    const { subreddit } = req.body as { subreddit?: string };
+    
+    if (subreddit) {
+      await clearCachedQuiz(subreddit);
+      res.json({
+        status: 'success',
+        message: `Cache cleared for r/${subreddit}`,
+      });
+    } else {
+      await clearAllQuizCaches();
+      res.json({
+        status: 'success',
+        message: 'All quiz caches cleared',
+      });
+    }
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Failed to clear cache',
+    });
+  }
+});
+
 // GET /api/quiz?subreddit=SUBREDDIT
 router.get<unknown, QuizResponse | { status: string; message: string }, unknown>(
   '/api/quiz',
@@ -131,16 +237,51 @@ router.get<unknown, QuizResponse | { status: string; message: string }, unknown>
     const subreddit = (req.query.subreddit as string) || 'AskReddit';
     
     try {
-      // TODO: Implement actual quiz data fetching from Reddit
-      // For now, return empty quiz data structure
-      const quizResponse: QuizResponse = {
-        quiz: [],
-        isNsfw: false,
-      };
+      // Check Redis cache first
+      const cachedQuiz = await getCachedQuiz(subreddit);
       
-      res.json(quizResponse);
+      if (cachedQuiz && cachedQuiz.length > 0) {
+        console.log(`Returning cached quiz for r/${subreddit}`);
+        res.json({
+          quiz: cachedQuiz,
+        });
+        return;
+      }
+      
+      // Cache miss - fetch from Reddit API
+      console.log(`Cache miss for r/${subreddit}, fetching from Reddit API...`);
+      
+      try {
+        const quizData = await fetchQuizData(subreddit);
+        
+        if (quizData.length === 0) {
+          throw new Error(`No quiz data available for r/${subreddit}. The subreddit may not exist or may not have enough posts with comments.`);
+        }
+        
+        // Cache the quiz data for today
+        await cacheQuiz(subreddit, quizData);
+        
+        res.json({
+          quiz: quizData,
+        });
+      } catch (fetchError) {
+        // If fetch fails with 403/UNKNOWN, provide helpful error message
+        const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        
+        if (errorMessage.includes('403') || errorMessage.includes('Forbidden') || errorMessage.includes('UNKNOWN')) {
+          console.error(`Reddit API fetch blocked for r/${subreddit}:`, errorMessage);
+          res.status(503).json({
+            status: 'error',
+            message: 'Unable to fetch quiz data from Reddit. External fetch() calls to Reddit appear to be blocked by Devvit. Please check /api/debug/reddit-methods to see available Reddit API methods.',
+            error: errorMessage,
+          } as { status: string; message: string; error: string });
+          return;
+        }
+        
+        throw fetchError;
+      }
     } catch (error) {
-      console.error(`Error fetching quiz for ${subreddit}:`, error);
+      console.error(`Error fetching quiz for r/${subreddit}:`, error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quiz data';
       res.status(500).json({
         status: 'error',

@@ -30,30 +30,11 @@ A starter to build web applications on Reddit's developer platform
 
 This template comes with a pre-configured cursor environment. To get started, [download cursor](https://www.cursor.com/downloads) and enable the `devvit-mcp` when prompted.
 
-## Fetch Domains
+## Data Fetching
 
-This app requests access to the following external domain:
+This app uses **Devvit's native Reddit API** (`reddit.getHotPosts()` and `reddit.getComments()`) to fetch quiz data. No external HTTP fetch calls are made to Reddit's public API, so no domain permissions are required in `devvit.json`.
 
-### `api.howhivemindryou.com`
-
-**Purpose:** This domain hosts an Azure Function API that provides quiz data for the "How Hivemind r/ You?" game.
-
-**Why this domain is needed:**
-
-1. **Infrastructure Reuse**: This app is part of a multi-platform game (web and Reddit) that shares backend infrastructure. The Azure Function handles Reddit API fetching, OAuth authentication, rate limiting, and Redis caching that is already built and tested.
-
-2. **Daily Quiz Pre-Generation**: The Reddit version requires daily quiz pre-generation with deterministic caching (same questions for all users each day). This capability is already implemented in the Azure infrastructure with scheduled cache-warmer functions.
-
-3. **Consistency**: By using the same backend API, both the web version (howhivemindryou.com) and Reddit version provide consistent quiz experiences and share the same data sources.
-
-4. **Rate Limiting & Caching**: The Azure Function implements sophisticated rate limiting and Redis caching that prevents Reddit API abuse and improves performance. Replicating this in Devvit would require duplicating infrastructure.
-
-**Usage Compliance:**
-- The API is used exclusively for fetching quiz data (Reddit posts and comments)
-- All requests are server-to-server (Devvit server → Azure Function)
-- No user data is transmitted to the external domain
-- The domain serves only this specific game application
-- HTTPS is enforced for all requests
-
-**Alternative Considered:**
-While Reddit API fetching could theoretically be implemented directly in Devvit, using the existing Azure infrastructure provides better scalability, consistency across platforms, and leverages existing caching/rate limiting infrastructure.
+**Quiz Data Source:**
+- The game fetches hot posts and top comments from Reddit subreddits using Devvit's built-in `reddit` object
+- Daily quiz caching is implemented using Devvit's Redis cache, ensuring all users get the same quiz questions each day
+- Cache automatically expires at midnight and refreshes with new data

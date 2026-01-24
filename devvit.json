@@ -21,6 +21,12 @@
   "media": {
     "dir": "assets"
   },
+  "permissions": {
+    "http": {
+      "enable": true,
+      "domains": []
+    }
+  },
   "menu": {
     "items": [
       {
@@ -34,5 +40,8 @@
   },
   "triggers": {
     "onAppInstall": "/internal/on-app-install"
+  },
+  "dev": {
+    "subreddit": "how_hivemind_r_u_dev"
   }
 }
