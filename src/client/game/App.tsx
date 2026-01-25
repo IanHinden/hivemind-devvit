@@ -108,6 +108,8 @@ export const App = () => {
               className="object-contain w-1/2 max-w-[200px] mb-4" 
               src="/logo.png" 
               alt="How Hivemind r/ You?" 
+              loading="eager"
+              decoding="async"
             />
             <p className="text-gray-600 text-center">
               Can you guess the top comment on recent Reddit posts?
