@@ -6,10 +6,19 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>devvit</title>
   </head>
   <body class="h-full">
-    <div id="root" class="h-full"></div>
+    <div id="root" class="h-full">
+      <!-- Loading screen - shown until React renders -->
+      <div id="loading-screen" class="h-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
+        <div class="flex flex-col items-center gap-4">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          <p class="text-gray-600">Loading quiz...</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="game/game.tsx"></script>
   </body>
 </html>

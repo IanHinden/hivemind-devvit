@@ -60,12 +60,12 @@ export const QuizQuestionComponent = ({
     <div>
       {/* Question */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+        <h2 className="text-xl font-bold text-gray-800 mb-3">
           {question.title}
         </h2>
 
         {question.selftext && (
-          <p className="text-gray-700 mb-4 whitespace-pre-wrap">
+          <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap leading-relaxed">
             {question.selftext}
           </p>
         )}
