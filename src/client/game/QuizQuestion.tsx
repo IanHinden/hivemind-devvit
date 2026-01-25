@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { navigateTo } from '@devvit/web/client';
 import type { QuizQuestion } from '../../shared/types/api';
 
 type QuizQuestionProps = {
@@ -17,6 +18,7 @@ export const QuizQuestionComponent = ({
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [urlCopied, setUrlCopied] = useState(false);
 
   const topComment = question.comments[0];
   const topCommentId = topComment?.id;
@@ -54,6 +56,31 @@ export const QuizQuestionComponent = ({
     const correct = commentId === topCommentId;
     setIsCorrect(correct);
     onAnswer(correct);
+  };
+
+  const handleViewThread = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Permalink might already include the full URL or just the path
+    const url = question.permalink.startsWith('http') 
+      ? question.permalink 
+      : `https://www.reddit.com${question.permalink}`;
+    
+    // Copy URL to clipboard since window.open is blocked in Devvit's sandbox
+    try {
+      await navigator.clipboard.writeText(url);
+      setUrlCopied(true);
+      // Reset the "copied" message after 3 seconds
+      setTimeout(() => setUrlCopied(false), 3000);
+    } catch (error) {
+      console.error('Failed to copy URL:', error);
+      // Fallback: try to navigate in the same tab
+      try {
+        navigateTo(url);
+      } catch (navError) {
+        console.error('Navigation error:', navError);
+      }
+    }
   };
 
   return (
@@ -150,6 +177,31 @@ export const QuizQuestionComponent = ({
               ❌ Not quite. The top comment was: "{topComment.body.substring(0, 100)}..."
             </p>
           )}
+          
+          {/* View on Reddit link */}
+          <div className="mt-4 text-center relative z-10">
+            <button
+              onClick={handleViewThread}
+              type="button"
+              className="text-sm text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-2 -m-2 relative z-10 font-medium"
+            >
+              {urlCopied ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-green-600">URL copied! Paste in a new tab</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Copy thread URL</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
