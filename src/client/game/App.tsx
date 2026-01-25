@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { QuizResponse, QuizQuestion, ErrorResponse } from '../../shared/types/api';
+import { QuizQuestionComponent } from './QuizQuestion';
 
 const DEFAULT_SUBREDDITS = [
   'AskReddit',
@@ -21,8 +22,6 @@ export const App = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
-  const [showAnswer, setShowAnswer] = useState(false);
   const [score, setScore] = useState(0);
 
   const loadQuiz = async (subreddit: string, retryAttempt = 0): Promise<void> => {
@@ -96,8 +95,6 @@ export const App = () => {
     setQuizData([]);
     setError(null);
     setCurrentQuestionIndex(0);
-    setSelectedCommentId(null);
-    setShowAnswer(false);
     setScore(0);
   };
 
@@ -210,6 +207,23 @@ export const App = () => {
   }
 
   // Quiz has started - show quiz questions
+  // Show loading state if still loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
+        <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg p-6">
+          <div className="text-center">
+            <svg className="animate-spin mx-auto h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-600">Loading quiz...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (quizData.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
@@ -255,54 +269,21 @@ export const App = () => {
     );
   }
 
-  const topComment = currentQuestion.comments[0];
-  
-  if (!topComment) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
-        <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg p-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              No Comments Available
-            </h2>
-            <button
-              onClick={handleRestart}
-              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium py-2 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              Start Over
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const handleAnswerSelect = (commentId: string) => {
-    if (showAnswer) return; // Don't allow selection after answer is shown
-    
-    setSelectedCommentId(commentId);
-    setShowAnswer(true);
-    
-    // Check if correct (selected the top comment)
-    if (commentId === topComment.id) {
+  const handleAnswer = (isCorrect: boolean) => {
+    if (isCorrect) {
       setScore(score + 1);
     }
   };
 
-  const handleNextQuestion = () => {
+  const handleNext = () => {
     if (currentQuestionIndex < quizData.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedCommentId(null);
-      setShowAnswer(false);
+    } else {
+      handleRestart();
     }
   };
 
-  const handleFinishQuiz = () => {
-    handleRestart();
-  };
-
   const isLastQuestion = currentQuestionIndex === quizData.length - 1;
-  const isCorrect = selectedCommentId === topComment.id;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
@@ -325,137 +306,24 @@ export const App = () => {
           </div>
         </div>
 
-        {/* Question */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            {currentQuestion.title}
-          </h2>
-          
-          {currentQuestion.selftext && (
-            <p className="text-gray-700 mb-4 whitespace-pre-wrap">
-              {currentQuestion.selftext}
-            </p>
-          )}
+        {/* Quiz Question Component - key ensures fresh component for each question */}
+        <QuizQuestionComponent
+          key={`question-${currentQuestionIndex}-${currentQuestion.postId}`}
+          question={currentQuestion}
+          onAnswer={handleAnswer}
+          onNext={handleNext}
+          isLastQuestion={isLastQuestion}
+        />
 
-          {currentQuestion.imageUrl && (
-            <img
-              src={currentQuestion.imageUrl}
-              alt="Post"
-              className="max-w-full h-auto rounded-lg mb-4"
-            />
-          )}
-
-          <p className="text-sm text-gray-500 mb-6">
-            Can you guess the top comment?
-          </p>
-        </div>
-
-        {/* Answer options */}
-        <div className="space-y-3 mb-6">
-          {currentQuestion.comments.map((comment) => {
-            const isSelected = selectedCommentId === comment.id;
-            const isTopComment = comment.id === topComment.id;
-            
-            let buttonClass = "w-full p-4 text-left border-2 rounded-lg transition-all duration-200 ";
-            
-            if (showAnswer) {
-              if (isTopComment) {
-                buttonClass += "bg-green-100 border-green-500 text-green-800";
-              } else if (isSelected) {
-                buttonClass += "bg-red-100 border-red-500 text-red-800";
-              } else {
-                buttonClass += "bg-gray-50 border-gray-300 text-gray-600";
-              }
-            } else {
-              buttonClass += isSelected
-                ? "bg-blue-100 border-blue-500 text-blue-800"
-                : "bg-white border-gray-300 hover:border-orange-400 hover:bg-orange-50 text-gray-800 cursor-pointer";
-            }
-
-            return (
-              <button
-                key={comment.id}
-                onClick={() => handleAnswerSelect(comment.id)}
-                disabled={showAnswer}
-                className={buttonClass}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium mb-1">
-                      {comment.body.length > 200 
-                        ? `${comment.body.substring(0, 200)}...` 
-                        : comment.body}
-                    </p>
-                    {comment.author && (
-                      <p className="text-xs text-gray-500">
-                        u/{comment.author} • {comment.ups} upvotes
-                      </p>
-                    )}
-                  </div>
-                  {showAnswer && isTopComment && (
-                    <span className="ml-2 text-green-600 font-bold">✓ Top Comment</span>
-                  )}
-                  {showAnswer && isSelected && !isTopComment && (
-                    <span className="ml-2 text-red-600 font-bold">✗</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Feedback and navigation */}
-        {showAnswer && (
-          <div className="mb-6 p-4 rounded-lg bg-gray-50">
-            {isCorrect ? (
-              <p className="text-green-700 font-semibold text-center">
-                🎉 Correct! That's the top comment!
-              </p>
-            ) : (
-              <p className="text-red-700 font-semibold text-center">
-                ❌ Not quite. The top comment was: "{topComment.body.substring(0, 100)}..."
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Navigation buttons */}
-        <div className="flex gap-4">
+        {/* Start Over button */}
+        <div className="mt-6">
           <button
             onClick={handleRestart}
-            className="flex-1 py-3 px-4 rounded-md font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+            className="w-full py-3 px-4 rounded-md font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
           >
             Start Over
           </button>
-          
-          {showAnswer && (
-            <button
-              onClick={isLastQuestion ? handleFinishQuiz : handleNextQuestion}
-              className="flex-1 py-3 px-4 rounded-md font-medium bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
-            </button>
-          )}
         </div>
-
-        {/* Final score screen */}
-        {showAnswer && isLastQuestion && (
-          <div className="mt-6 p-6 bg-gradient-to-br from-orange-100 to-red-100 rounded-lg text-center">
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">
-              Quiz Complete! 🎉
-            </h3>
-            <p className="text-lg text-gray-700 mb-4">
-              You got {score} out of {quizData.length} questions correct!
-            </p>
-            <p className="text-sm text-gray-600">
-              {score === quizData.length 
-                ? "Perfect score! You really know the hivemind!" 
-                : score >= quizData.length / 2
-                ? "Great job! You're pretty in tune with Reddit."
-                : "Not bad! Keep playing to improve your score."}
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

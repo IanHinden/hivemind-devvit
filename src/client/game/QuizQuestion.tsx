@@ -1,0 +1,167 @@
+import { useState, useMemo } from 'react';
+import type { QuizQuestion } from '../../shared/types/api';
+
+type QuizQuestionProps = {
+  question: QuizQuestion;
+  onAnswer: (isCorrect: boolean) => void;
+  onNext: () => void;
+  isLastQuestion: boolean;
+};
+
+export const QuizQuestionComponent = ({
+  question,
+  onAnswer,
+  onNext,
+  isLastQuestion,
+}: QuizQuestionProps) => {
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+
+  const topComment = question.comments[0];
+  const topCommentId = topComment?.id;
+
+  if (!topComment) {
+    return (
+      <div className="text-center p-4">
+        <p className="text-red-600">No comments available for this question.</p>
+      </div>
+    );
+  }
+
+  // Shuffle comments once when component mounts (useMemo with stable dependencies)
+  const shuffledComments = useMemo(() => {
+    if (!question.comments || question.comments.length === 0) {
+      return [];
+    }
+    // Create a copy and shuffle using Fisher-Yates algorithm
+    const shuffled = [...question.comments];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffled[i]!;
+      shuffled[i] = shuffled[j]!;
+      shuffled[j] = temp;
+    }
+    return shuffled;
+  }, [question.postId]); // Only reshuffle if postId changes
+
+  const handleAnswerSelect = (commentId: string) => {
+    if (showAnswer) return;
+
+    setSelectedCommentId(commentId);
+    setShowAnswer(true);
+
+    const correct = commentId === topCommentId;
+    setIsCorrect(correct);
+    onAnswer(correct);
+  };
+
+  return (
+    <div>
+      {/* Question */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+          {question.title}
+        </h2>
+
+        {question.selftext && (
+          <p className="text-gray-700 mb-4 whitespace-pre-wrap">
+            {question.selftext}
+          </p>
+        )}
+
+        {question.imageUrl && (
+          <img
+            src={question.imageUrl}
+            alt="Post"
+            className="max-w-full h-auto rounded-lg mb-4"
+          />
+        )}
+
+        <p className="text-sm text-gray-500 mb-6">
+          Can you guess the top comment?
+        </p>
+      </div>
+
+      {/* Answer options */}
+      <div className="space-y-3 mb-6">
+        {shuffledComments.map((comment) => {
+          const isSelected = selectedCommentId === comment.id;
+          const isTopComment = comment.id === topCommentId;
+
+          let buttonClass = "w-full p-4 text-left border-2 rounded-lg transition-all duration-200 ";
+
+          if (showAnswer) {
+            if (isTopComment) {
+              buttonClass += "bg-green-100 border-green-500 text-green-800";
+            } else if (isSelected) {
+              buttonClass += "bg-red-100 border-red-500 text-red-800";
+            } else {
+              buttonClass += "bg-gray-50 border-gray-300 text-gray-600";
+            }
+          } else {
+            buttonClass += isSelected
+              ? "bg-blue-100 border-blue-500 text-blue-800"
+              : "bg-white border-gray-300 hover:border-orange-400 hover:bg-orange-50 text-gray-800 cursor-pointer";
+          }
+
+          return (
+            <button
+              key={comment.id}
+              onClick={() => handleAnswerSelect(comment.id)}
+              disabled={showAnswer}
+              className={buttonClass}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium mb-1">
+                    {comment.body.length > 200
+                      ? `${comment.body.substring(0, 200)}...`
+                      : comment.body}
+                  </p>
+                  {/* Only show author and upvotes after answer is revealed */}
+                  {showAnswer && comment.author && (
+                    <p className="text-xs text-gray-500">
+                      u/{comment.author} • {comment.ups} upvotes
+                    </p>
+                  )}
+                </div>
+                {showAnswer && isTopComment && (
+                  <span className="ml-2 text-green-600 font-bold">✓ Top Comment</span>
+                )}
+                {showAnswer && isSelected && !isTopComment && (
+                  <span className="ml-2 text-red-600 font-bold">✗</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Feedback */}
+      {showAnswer && (
+        <div className="mb-6 p-4 rounded-lg bg-gray-50">
+          {isCorrect ? (
+            <p className="text-green-700 font-semibold text-center">
+              🎉 Correct! That's the top comment!
+            </p>
+          ) : (
+            <p className="text-red-700 font-semibold text-center">
+              ❌ Not quite. The top comment was: "{topComment.body.substring(0, 100)}..."
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Navigation */}
+      {showAnswer && (
+        <button
+          onClick={onNext}
+          className="w-full py-3 px-4 rounded-md font-medium bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+        >
+          {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
+        </button>
+      )}
+    </div>
+  );
+};
