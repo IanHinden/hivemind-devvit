@@ -304,6 +304,10 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
   // Fetch hot posts (fetch more than needed in case some don't have enough comments)
   const posts = await fetchSubredditPosts(subreddit, 10);
   
+  if (!posts || posts.length === 0) {
+    throw new Error(`No posts found in r/${subreddit}. The subreddit may not exist, may be private, or may not have any posts.`);
+  }
+  
   // Fetch comments for each post in parallel
   // Note: getComments needs the full post ID in t3_xxxxx format
   // We only need 3 comments per post, so fetch 5 to have some buffer
@@ -315,7 +319,7 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
     
     return fetchPostComments(subreddit, fullPostId, 5).catch((error) => {
       console.error(`Failed to fetch comments for post ${post.id}:`, error);
-      return []; // Return empty array on error
+      return []; // Return empty array on error - post will be skipped
     });
   });
   
@@ -334,6 +338,10 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
   
   // Transform to quiz format
   const quizQuestions = transformToQuizFormat(posts, commentsMap);
+  
+  if (quizQuestions.length === 0) {
+    throw new Error(`Could not generate quiz questions for r/${subreddit}. Posts may not have enough comments, or comments may be deleted/removed.`);
+  }
   
   return quizQuestions;
 }

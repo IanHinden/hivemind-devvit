@@ -1,5 +1,5 @@
 import express from 'express';
-import { QuizResponse } from '../shared/types/api';
+import { QuizResponse, ErrorResponse, ErrorType } from '../shared/types/api';
 import { createServer, getServerPort, context } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { fetchQuizData } from './core/quiz';
@@ -77,10 +77,21 @@ router.post('/api/clear-cache', async (req, res): Promise<void> => {
 });
 
 // GET /api/quiz?subreddit=SUBREDDIT
-router.get<unknown, QuizResponse | { status: string; message: string }, unknown>(
+router.get<unknown, QuizResponse | ErrorResponse, unknown>(
   '/api/quiz',
   async (req, res): Promise<void> => {
     const subreddit = (req.query.subreddit as string) || 'AskReddit';
+    
+    // Validate subreddit name
+    if (!subreddit || subreddit.trim().length === 0) {
+      res.status(400).json({
+        status: 'error',
+        message: 'Please select a valid subreddit',
+        type: 'INSUFFICIENT_DATA',
+        retryable: false,
+      } as ErrorResponse);
+      return;
+    }
     
     try {
       // Check Redis cache first
@@ -101,7 +112,16 @@ router.get<unknown, QuizResponse | { status: string; message: string }, unknown>
         const quizData = await fetchQuizData(subreddit);
         
         if (quizData.length === 0) {
-          throw new Error(`No quiz data available for r/${subreddit}. The subreddit may not exist or may not have enough posts with comments.`);
+          // Try to provide helpful error message
+          const errorResponse: ErrorResponse = {
+            status: 'error',
+            message: `Couldn't find enough quiz questions for r/${subreddit}. This subreddit may not exist, may be private, or may not have enough posts with comments.`,
+            type: 'INSUFFICIENT_DATA',
+            retryable: true,
+            suggestion: 'Try selecting a different subreddit',
+          };
+          res.status(404).json(errorResponse);
+          return;
         }
         
         // Cache the quiz data for today
@@ -111,15 +131,50 @@ router.get<unknown, QuizResponse | { status: string; message: string }, unknown>
           quiz: quizData,
         });
       } catch (fetchError) {
-        throw fetchError;
+        // Categorize the error
+        const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        let errorType: ErrorType = 'UNKNOWN_ERROR';
+        let retryable = false;
+        let suggestion = 'Please try again later';
+        
+        // Categorize errors
+        if (errorMessage.includes('not found') || errorMessage.includes('does not exist') || errorMessage.includes('404')) {
+          errorType = 'SUBREDDIT_NOT_FOUND';
+          suggestion = 'Please check the subreddit name and try a different one';
+        } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+          errorType = 'RATE_LIMIT';
+          retryable = true;
+          suggestion = 'Reddit is rate limiting requests. Please wait a moment and try again';
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('timeout')) {
+          errorType = 'NETWORK_ERROR';
+          retryable = true;
+          suggestion = 'Network error occurred. Please check your connection and try again';
+        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+          errorType = 'API_ERROR';
+          suggestion = 'Unable to access Reddit data. The subreddit may be private or restricted';
+        }
+        
+        const errorResponse: ErrorResponse = {
+          status: 'error',
+          message: errorMessage,
+          type: errorType,
+          retryable,
+          suggestion,
+        };
+        
+        res.status(errorType === 'SUBREDDIT_NOT_FOUND' ? 404 : errorType === 'RATE_LIMIT' ? 429 : 500).json(errorResponse);
+        return;
       }
     } catch (error) {
-      console.error(`Error fetching quiz for r/${subreddit}:`, error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch quiz data';
-      res.status(500).json({
+      console.error(`Unexpected error fetching quiz for r/${subreddit}:`, error);
+      const errorResponse: ErrorResponse = {
         status: 'error',
-        message: errorMessage,
-      });
+        message: 'Failed to load quiz. Please try again.',
+        type: 'UNKNOWN_ERROR',
+        retryable: true,
+        suggestion: 'Please try again in a moment',
+      };
+      res.status(500).json(errorResponse);
     }
   }
 );

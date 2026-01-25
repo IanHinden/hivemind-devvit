@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { QuizResponse, QuizQuestion } from '../../shared/types/api';
+import type { QuizResponse, QuizQuestion, ErrorResponse } from '../../shared/types/api';
 
 const DEFAULT_SUBREDDITS = [
   'AskReddit',
@@ -17,14 +17,15 @@ export const App = () => {
   const [selectedSubreddit, setSelectedSubreddit] = useState<string>('AskReddit');
   const [quizData, setQuizData] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorResponse | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [score, setScore] = useState(0);
 
-  const loadQuiz = async (subreddit: string) => {
+  const loadQuiz = async (subreddit: string, retryAttempt = 0): Promise<void> => {
     setLoading(true);
     setError(null);
 
@@ -32,20 +33,58 @@ export const App = () => {
       const response = await fetch(`/api/quiz?subreddit=${encodeURIComponent(subreddit)}`);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || `Failed to load quiz: ${response.status}`;
-        throw new Error(errorMessage);
+        const errorData: ErrorResponse = await response.json().catch(() => ({
+          status: 'error' as const,
+          message: `Failed to load quiz: ${response.status}`,
+          type: 'UNKNOWN_ERROR' as const,
+          retryable: response.status >= 500,
+        }));
+        
+        // Retry logic for retryable errors
+        if (errorData.retryable && retryAttempt < 2) {
+          console.log(`Retrying quiz load (attempt ${retryAttempt + 1}/2)...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (retryAttempt + 1))); // Exponential backoff
+          return loadQuiz(subreddit, retryAttempt + 1);
+        }
+        
+        throw errorData;
       }
 
       const data: QuizResponse = await response.json();
+      
+      if (!data.quiz || data.quiz.length === 0) {
+        throw {
+          status: 'error' as const,
+          message: 'No quiz questions were returned',
+          type: 'INSUFFICIENT_DATA' as const,
+          retryable: true,
+          suggestion: 'Try selecting a different subreddit',
+        } as ErrorResponse;
+      }
+      
       setQuizData(data.quiz);
       setQuizStarted(true);
+      setRetryCount(0);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load quiz. Please try again.';
-      setError(errorMessage);
+      const errorData: ErrorResponse = err instanceof Error 
+        ? {
+            status: 'error',
+            message: err.message,
+            type: 'UNKNOWN_ERROR',
+            retryable: true,
+          }
+        : err as ErrorResponse;
+      
+      setError(errorData);
+      setRetryCount(retryAttempt);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setRetryCount(0);
+    loadQuiz(selectedSubreddit, 0);
   };
 
   const handleStartQuiz = () => {
@@ -99,8 +138,41 @@ export const App = () => {
             </div>
 
             {error && (
-              <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                {error}
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-sm font-medium text-red-800">
+                      {error.type === 'SUBREDDIT_NOT_FOUND' && 'Subreddit Not Found'}
+                      {error.type === 'INSUFFICIENT_DATA' && 'Not Enough Data'}
+                      {error.type === 'RATE_LIMIT' && 'Rate Limited'}
+                      {error.type === 'NETWORK_ERROR' && 'Network Error'}
+                      {error.type === 'API_ERROR' && 'API Error'}
+                      {!error.type && 'Error Loading Quiz'}
+                    </h3>
+                    <p className="mt-1 text-sm text-red-700">
+                      {error.message}
+                    </p>
+                    {error.suggestion && (
+                      <p className="mt-2 text-sm text-red-600">
+                        💡 {error.suggestion}
+                      </p>
+                    )}
+                    {error.retryable && retryCount < 2 && (
+                      <button
+                        onClick={handleRetry}
+                        disabled={loading}
+                        className="mt-3 text-sm font-medium text-red-800 hover:text-red-900 underline"
+                      >
+                        Try Again
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

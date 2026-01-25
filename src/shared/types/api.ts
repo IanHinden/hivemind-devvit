@@ -29,3 +29,20 @@ export type QuizResponse = {
 export type FetchQuizRequest = {
   subreddit: string;
 };
+
+// Error types for better error handling
+export type ErrorType = 
+  | 'NETWORK_ERROR'
+  | 'SUBREDDIT_NOT_FOUND'
+  | 'INSUFFICIENT_DATA'
+  | 'API_ERROR'
+  | 'RATE_LIMIT'
+  | 'UNKNOWN_ERROR';
+
+export type ErrorResponse = {
+  status: 'error';
+  message: string;
+  type?: ErrorType;
+  retryable?: boolean;
+  suggestion?: string;
+};
