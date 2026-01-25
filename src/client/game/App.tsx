@@ -62,37 +62,21 @@ export const App = () => {
     setScore(0);
   };
 
-  const handleClearCache = async () => {
-    try {
-      const response = await fetch('/api/clear-cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subreddit: selectedSubreddit }),
-      });
-      
-      const data = await response.json();
-      if (response.ok) {
-        alert(`✅ ${data.message}`);
-      } else {
-        alert(`❌ Error: ${data.message}`);
-      }
-    } catch (err) {
-      console.error('Failed to clear cache:', err);
-      alert('❌ Failed to clear cache');
-    }
-  };
-
   // Quiz hasn't started - show subreddit selector
   if (!quizStarted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
-            How Hivemind r/ You?
-          </h1>
-          <p className="text-gray-600 text-center mb-6">
-            Can you guess the top comment on recent Reddit posts?
-          </p>
+          <div className="flex flex-col items-center mb-6">
+            <img 
+              className="object-contain w-1/2 max-w-[200px] mb-4" 
+              src="/logo.png" 
+              alt="How Hivemind r/ You?" 
+            />
+            <p className="text-gray-600 text-center">
+              Can you guess the top comment on recent Reddit posts?
+            </p>
+          </div>
           
           <div className="space-y-4">
             <div>
@@ -147,15 +131,6 @@ export const App = () => {
                 Quiz will include 5 questions from recent popular posts
               </p>
             )}
-
-            {/* Clear cache button for testing */}
-            <button
-              onClick={handleClearCache}
-              className="w-full py-2 px-4 rounded-md font-medium text-sm bg-yellow-200 hover:bg-yellow-300 text-yellow-800 transition-colors"
-              title="Clear cache for this subreddit (useful for testing)"
-            >
-              🗑️ Clear Cache
-            </button>
           </div>
         </div>
       </div>
