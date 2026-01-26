@@ -1,21 +1,9 @@
-import { useState } from 'react';
-import type { QuizResponse, QuizQuestion, ErrorResponse } from '../../shared/types/api';
+import { useState, useEffect } from 'react';
+import type { QuizResponse, QuizQuestion, ErrorResponse, DailySubredditResponse } from '../../shared/types/api';
 import { QuizQuestionComponent } from './QuizQuestion';
 
-const DEFAULT_SUBREDDITS = [
-  'AskReddit',
-  'pics',
-  'todayilearned',
-  'explainlikeimfive',
-  'webdev',
-  'Showerthoughts',
-  'LifeProTips',
-  'mildlyinteresting',
-  'gifs',
-] as const;
-
 export const App = () => {
-  const [selectedSubreddit, setSelectedSubreddit] = useState<string>('AskReddit');
+  const [dailySubreddit, setDailySubreddit] = useState<string | null>(null);
   const [quizData, setQuizData] = useState<QuizQuestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorResponse | null>(null);
@@ -23,6 +11,27 @@ export const App = () => {
   const [quizStarted, setQuizStarted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
+
+  // Fetch daily subreddit on mount
+  useEffect(() => {
+    const fetchDailySubreddit = async () => {
+      try {
+        const response = await fetch('/api/daily-subreddit');
+        if (response.ok) {
+          const data: DailySubredditResponse = await response.json();
+          setDailySubreddit(data.subreddit);
+        } else {
+          // Fallback to AskReddit if API fails
+          setDailySubreddit('AskReddit');
+        }
+      } catch (err) {
+        console.error('Failed to fetch daily subreddit:', err);
+        // Fallback to AskReddit if API fails
+        setDailySubreddit('AskReddit');
+      }
+    };
+    fetchDailySubreddit();
+  }, []);
 
   const loadQuiz = async (subreddit: string, retryAttempt = 0): Promise<void> => {
     setLoading(true);
@@ -83,11 +92,15 @@ export const App = () => {
 
   const handleRetry = () => {
     setRetryCount(0);
-    loadQuiz(selectedSubreddit, 0);
+    if (dailySubreddit) {
+      loadQuiz(dailySubreddit, 0);
+    }
   };
 
   const handleStartQuiz = () => {
-    loadQuiz(selectedSubreddit);
+    if (dailySubreddit) {
+      loadQuiz(dailySubreddit);
+    }
   };
 
   const handleRestart = () => {
@@ -98,8 +111,25 @@ export const App = () => {
     setScore(0);
   };
 
-  // Quiz hasn't started - show subreddit selector
+  // Quiz hasn't started - show welcome screen with daily subreddit
   if (!quizStarted) {
+    // Wait for daily subreddit to load
+    if (!dailySubreddit) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+            <div className="text-center">
+              <svg className="animate-spin mx-auto h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-gray-600">Loading today's challenge...</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
@@ -111,33 +141,19 @@ export const App = () => {
               loading="eager"
               decoding="async"
             />
-            <p className="text-gray-600 text-center">
+            <p className="text-gray-600 text-center mb-2">
               Can you guess the top comment on recent Reddit posts?
             </p>
+            <div className="mt-2 px-4 py-2 bg-orange-100 rounded-lg">
+              <p className="text-sm font-semibold text-orange-800">
+                Today's Challenge: <span className="font-bold">r/{dailySubreddit}</span>
+              </p>
+            </div>
           </div>
           
           <div className="space-y-4">
-            <div>
-              <label htmlFor="subreddit" className="block text-sm font-medium text-gray-700 mb-2">
-                Choose a Subreddit
-              </label>
-              <select
-                id="subreddit"
-                value={selectedSubreddit}
-                onChange={(e) => setSelectedSubreddit(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500"
-                disabled={loading}
-              >
-                {DEFAULT_SUBREDDITS.map((sub) => (
-                  <option key={sub} value={sub}>
-                    r/{sub}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {error && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -199,7 +215,7 @@ export const App = () => {
 
             {!loading && (
               <p className="text-xs text-gray-500 text-center">
-                Quiz will include 5 questions from recent popular posts
+                Quiz will include 5 questions from recent popular posts in r/{dailySubreddit}
               </p>
             )}
           </div>

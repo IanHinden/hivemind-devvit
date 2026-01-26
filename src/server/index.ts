@@ -4,6 +4,7 @@ import { createServer, getServerPort, context } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { fetchQuizData } from './core/quiz';
 import { getCachedQuiz, cacheQuiz, clearCachedQuiz, clearAllQuizCaches } from './core/quizCache';
+import { getDailySubreddit } from '../shared/config/subreddits';
 
 const app = express();
 
@@ -76,11 +77,29 @@ router.post('/api/clear-cache', async (req, res): Promise<void> => {
   }
 });
 
-// GET /api/quiz?subreddit=SUBREDDIT
+// GET /api/daily-subreddit - Returns the subreddit for today
+router.get('/api/daily-subreddit', async (_req, res): Promise<void> => {
+  try {
+    const dailySubreddit = getDailySubreddit();
+    res.json({
+      subreddit: dailySubreddit,
+      date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    });
+  } catch (error) {
+    console.error('Error getting daily subreddit:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get daily subreddit',
+    });
+  }
+});
+
+// GET /api/quiz?subreddit=SUBREDDIT (optional - defaults to daily subreddit)
 router.get<unknown, QuizResponse | ErrorResponse, unknown>(
   '/api/quiz',
   async (req, res): Promise<void> => {
-    const subreddit = (req.query.subreddit as string) || 'AskReddit';
+    // If no subreddit provided, use the daily subreddit
+    const subreddit = (req.query.subreddit as string) || getDailySubreddit();
     
     // Validate subreddit name
     if (!subreddit || subreddit.trim().length === 0) {

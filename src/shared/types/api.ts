@@ -30,6 +30,11 @@ export type FetchQuizRequest = {
   subreddit: string;
 };
 
+export type DailySubredditResponse = {
+  subreddit: string;
+  date: string; // YYYY-MM-DD
+};
+
 // Error types for better error handling
 export type ErrorType = 
   | 'NETWORK_ERROR'
