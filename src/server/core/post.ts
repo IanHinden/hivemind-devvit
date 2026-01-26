@@ -11,6 +11,17 @@ export const createPost = async (subreddit?: ApprovedSubreddit) => {
     entry: 'game', // Go directly to game, no splash screen
   });
   
+  // Auto-approve the post so it doesn't require manual moderation
+  // This ensures daily posts appear immediately without mod intervention
+  try {
+    await reddit.approve(post.id);
+    console.log(`Auto-approved post ${post.id}`);
+  } catch (error) {
+    // If approval fails (e.g., app doesn't have mod permissions), log but don't fail
+    console.warn(`Failed to auto-approve post ${post.id}:`, error);
+    // Post will still be created, just may need manual approval
+  }
+  
   // Store post metadata (date and subreddit) so we can load the correct quiz later
   // Key format: post_meta:{postId}
   // This allows old posts to load their original quiz
