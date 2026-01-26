@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { context } from '@devvit/web/client';
 import type { QuizResponse, QuizQuestion, ErrorResponse, DailySubredditResponse } from '../../shared/types/api';
 import { QuizQuestionComponent } from './QuizQuestion';
 
@@ -12,11 +13,17 @@ export const App = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
 
-  // Fetch daily subreddit on mount
+  // Fetch daily subreddit on mount (pass postId if available to get historical quiz)
   useEffect(() => {
     const fetchDailySubreddit = async () => {
       try {
-        const response = await fetch('/api/daily-subreddit');
+        // Get post ID from context if available (for historical posts)
+        const postId = context?.postId;
+        const url = postId 
+          ? `/api/daily-subreddit?postId=${encodeURIComponent(postId)}`
+          : '/api/daily-subreddit';
+        
+        const response = await fetch(url);
         if (response.ok) {
           const data: DailySubredditResponse = await response.json();
           setDailySubreddit(data.subreddit);
@@ -38,7 +45,13 @@ export const App = () => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/quiz?subreddit=${encodeURIComponent(subreddit)}`);
+      // Get post ID from context if available (for historical posts)
+      const postId = context?.postId;
+      const url = postId
+        ? `/api/quiz?subreddit=${encodeURIComponent(subreddit)}&postId=${encodeURIComponent(postId)}`
+        : `/api/quiz?subreddit=${encodeURIComponent(subreddit)}`;
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         const errorData: ErrorResponse = await response.json().catch(() => ({

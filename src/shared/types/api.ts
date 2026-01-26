@@ -33,6 +33,7 @@ export type FetchQuizRequest = {
 export type DailySubredditResponse = {
   subreddit: string;
   date: string; // YYYY-MM-DD
+  isHistorical?: boolean; // True if this is from an old post
 };
 
 // Error types for better error handling

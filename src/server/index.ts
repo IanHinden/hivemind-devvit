@@ -1,6 +1,6 @@
 import express from 'express';
 import { QuizResponse, ErrorResponse, ErrorType } from '../shared/types/api';
-import { createServer, getServerPort, context } from '@devvit/web/server';
+import { createServer, getServerPort, context, redis } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { fetchQuizData } from './core/quiz';
 import { getCachedQuiz, cacheQuiz, clearCachedQuiz, clearAllQuizCaches } from './core/quizCache';
@@ -50,6 +50,52 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
   }
 });
 
+// Scheduled daily post creation
+// This endpoint is called by Devvit's scheduler to create a new post each day
+router.post('/internal/scheduled/daily-post', async (_req, res): Promise<void> => {
+  try {
+    const dailySubreddit = getDailySubreddit();
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Check if we already created a post today (using Redis cache)
+    const cacheKey = `daily_post:${today}`;
+    const existingPost = await redis.get(cacheKey);
+    
+    if (existingPost) {
+      console.log(`Daily post already created for ${today}`);
+      res.json({
+        status: 'success',
+        message: `Daily post already exists for ${today}`,
+        postId: existingPost,
+      });
+      return;
+    }
+    
+    // Create the post (pass subreddit to avoid duplicate getDailySubreddit() call)
+    const post = await createPost(dailySubreddit);
+    
+    // Cache the post ID for today (expires at midnight)
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    await redis.set(cacheKey, post.id, { expiration: midnight });
+    
+    console.log(`Daily post created for ${today} with subreddit r/${dailySubreddit}`);
+    
+    res.json({
+      status: 'success',
+      message: `Daily post created for ${today} with subreddit r/${dailySubreddit}`,
+      postId: post.id,
+      subreddit: dailySubreddit,
+    });
+  } catch (error) {
+    console.error(`Error creating daily post: ${error}`);
+    res.status(500).json({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Failed to create daily post',
+    });
+  }
+});
+
 // Clear cache endpoint (for admin/testing purposes)
 router.post('/api/clear-cache', async (req, res): Promise<void> => {
   try {
@@ -77,13 +123,38 @@ router.post('/api/clear-cache', async (req, res): Promise<void> => {
   }
 });
 
-// GET /api/daily-subreddit - Returns the subreddit for today
-router.get('/api/daily-subreddit', async (_req, res): Promise<void> => {
+// GET /api/daily-subreddit?postId=POST_ID - Returns the subreddit for today or for a specific post
+router.get('/api/daily-subreddit', async (req, res): Promise<void> => {
   try {
+    const postId = req.query.postId as string | undefined;
+    
+    // If postId is provided, try to get the post's original date/subreddit
+    if (postId) {
+      const postMetaKey = `post_meta:${postId}`;
+      const postMetaData = await redis.get(postMetaKey);
+      
+      if (postMetaData) {
+        try {
+          const postMeta = JSON.parse(postMetaData) as { date: string; subreddit: string };
+          res.json({
+            subreddit: postMeta.subreddit,
+            date: postMeta.date,
+            isHistorical: true, // Indicates this is from an old post
+          });
+          return;
+        } catch (error) {
+          console.error(`Failed to parse post metadata for ${postId}:`, error);
+          // Fall through to use today's subreddit
+        }
+      }
+    }
+    
+    // Default: return today's subreddit
     const dailySubreddit = getDailySubreddit();
     res.json({
       subreddit: dailySubreddit,
       date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+      isHistorical: false,
     });
   } catch (error) {
     console.error('Error getting daily subreddit:', error);
@@ -94,12 +165,36 @@ router.get('/api/daily-subreddit', async (_req, res): Promise<void> => {
   }
 });
 
-// GET /api/quiz?subreddit=SUBREDDIT (optional - defaults to daily subreddit)
+// GET /api/quiz?subreddit=SUBREDDIT&date=YYYY-MM-DD&postId=POST_ID
+// subreddit and date are optional - if postId is provided, uses post's original date/subreddit
 router.get<unknown, QuizResponse | ErrorResponse, unknown>(
   '/api/quiz',
   async (req, res): Promise<void> => {
+    const postId = req.query.postId as string | undefined;
+    let subreddit = req.query.subreddit as string | undefined;
+    let date = req.query.date as string | undefined;
+    
+    // If postId is provided, try to get the post's original date/subreddit
+    if (postId && !subreddit) {
+      const postMetaKey = `post_meta:${postId}`;
+      const postMetaData = await redis.get(postMetaKey);
+      
+      if (postMetaData) {
+        try {
+          const postMeta = JSON.parse(postMetaData) as { date: string; subreddit: string };
+          subreddit = postMeta.subreddit;
+          date = postMeta.date;
+          console.log(`Using historical quiz for post ${postId}: date=${date}, subreddit=${subreddit}`);
+        } catch (error) {
+          console.error(`Failed to parse post metadata for ${postId}:`, error);
+        }
+      }
+    }
+    
     // If no subreddit provided, use the daily subreddit
-    const subreddit = (req.query.subreddit as string) || getDailySubreddit();
+    if (!subreddit) {
+      subreddit = getDailySubreddit();
+    }
     
     // Validate subreddit name
     if (!subreddit || subreddit.trim().length === 0) {
@@ -113,8 +208,8 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
     }
     
     try {
-      // Check Redis cache first
-      const cachedQuiz = await getCachedQuiz(subreddit);
+      // Check Redis cache first (use provided date or today's date)
+      const cachedQuiz = await getCachedQuiz(subreddit, date);
       
       if (cachedQuiz && cachedQuiz.length > 0) {
         console.log(`Returning cached quiz for r/${subreddit}`);
@@ -143,8 +238,8 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
           return;
         }
         
-        // Cache the quiz data for today
-        await cacheQuiz(subreddit, quizData);
+        // Cache the quiz data (use provided date or today's date, expires in 30 days)
+        await cacheQuiz(subreddit, quizData, date);
         
         res.json({
           quiz: quizData,
