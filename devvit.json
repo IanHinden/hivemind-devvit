@@ -39,14 +39,15 @@
     ]
   },
   "triggers": {
-    "onAppInstall": "/internal/on-app-install",
-    "onSchedule": [
-      {
-        "cron": "0 0 * * *",
-        "timezone": "America/New_York",
-        "endpoint": "/internal/scheduled/daily-post"
+    "onAppInstall": "/internal/on-app-install"
+  },
+  "scheduler": {
+    "tasks": {
+      "daily-post": {
+        "endpoint": "/internal/scheduled/daily-post",
+        "cron": "0 0 * * *"
       }
-    ]
+    }
   },
   "dev": {
     "subreddit": "how_hivemind_r_u_dev"
