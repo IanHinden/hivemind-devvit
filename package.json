@@ -20,7 +20,8 @@
     "login": "devvit login",
     "launch": "npm run build && npm run deploy && devvit publish",
     "prettier": "prettier-package-json --write ./package.json && prettier --write .",
-    "type-check": "tsc --build"
+    "type-check": "tsc --build",
+    "next-subreddit": "node scripts/next-subreddit.mjs"
   },
   "dependencies": {
     "@devvit/web": "0.12.8",

@@ -4,7 +4,7 @@ import { createServer, getServerPort, context, redis, reddit } from '@devvit/web
 import { createPost } from './core/post';
 import { fetchQuizData } from './core/quiz';
 import { getCachedQuiz, cacheQuiz, clearCachedQuiz, clearAllQuizCaches } from './core/quizCache';
-import { getDailySubreddit } from '../shared/config/subreddits';
+import { getDailySubreddit, getDailySubredditForDate } from '../shared/config/subreddits';
 
 const app = express();
 
@@ -119,6 +119,37 @@ router.post('/api/clear-cache', async (req, res): Promise<void> => {
     res.status(500).json({
       status: 'error',
       message: error instanceof Error ? error.message : 'Failed to clear cache',
+    });
+  }
+});
+
+// GET /api/next-subreddit?days=N - Returns tomorrow's subreddit and optional upcoming days (for planning rotation)
+router.get('/api/next-subreddit', async (req, res): Promise<void> => {
+  try {
+    const daysParam = req.query.days as string | undefined;
+    const days = daysParam ? Math.min(Math.max(1, parseInt(daysParam, 10)), 31) : 7;
+    const today = new Date();
+    const upcoming: { date: string; subreddit: string }[] = [];
+    for (let i = 1; i <= days; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      upcoming.push({
+        date: d.toISOString().split('T')[0],
+        subreddit: getDailySubredditForDate(d),
+      });
+    }
+    res.json({
+      today: getDailySubreddit(),
+      todayDate: today.toISOString().split('T')[0],
+      nextSubreddit: getDailySubredditForDate(new Date(today.getTime() + 86400000)),
+      nextDate: new Date(today.getTime() + 86400000).toISOString().split('T')[0],
+      upcoming,
+    });
+  } catch (error) {
+    console.error('Error getting next subreddit:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get next subreddit',
     });
   }
 });
