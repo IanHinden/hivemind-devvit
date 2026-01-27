@@ -308,8 +308,12 @@ export const App = () => {
       setScore(score + 1);
     }
   };
-
   const handleNext = () => {
+    // Scroll back to top when moving to the next question or finishing the quiz
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     if (currentQuestionIndex < quizData.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
