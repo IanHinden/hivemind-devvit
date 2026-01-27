@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { context } from '@devvit/web/client';
 import type { QuizResponse, QuizQuestion, ErrorResponse, DailySubredditResponse } from '../../shared/types/api';
 import { QuizQuestionComponent } from './QuizQuestion';
+import { ScoreSummary } from './ScoreSummary';
 
 export const App = () => {
   const [dailySubreddit, setDailySubreddit] = useState<string | null>(null);
@@ -10,6 +11,7 @@ export const App = () => {
   const [error, setError] = useState<ErrorResponse | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
 
@@ -118,6 +120,7 @@ export const App = () => {
 
   const handleRestart = () => {
     setQuizStarted(false);
+    setQuizCompleted(false);
     setQuizData([]);
     setError(null);
     setCurrentQuestionIndex(0);
@@ -310,11 +313,24 @@ export const App = () => {
     if (currentQuestionIndex < quizData.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      handleRestart();
+      // Quiz is complete - show score summary
+      setQuizCompleted(true);
     }
   };
 
   const isLastQuestion = currentQuestionIndex === quizData.length - 1;
+
+  // Show score summary if quiz is completed
+  if (quizCompleted && dailySubreddit) {
+    return (
+      <ScoreSummary
+        score={score}
+        totalQuestions={quizData.length}
+        subreddit={dailySubreddit}
+        onRestart={handleRestart}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">

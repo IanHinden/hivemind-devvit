@@ -1,6 +1,6 @@
 import express from 'express';
 import { QuizResponse, ErrorResponse, ErrorType } from '../shared/types/api';
-import { createServer, getServerPort, context, redis } from '@devvit/web/server';
+import { createServer, getServerPort, context, redis, reddit } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { fetchQuizData } from './core/quiz';
 import { getCachedQuiz, cacheQuiz, clearCachedQuiz, clearAllQuizCaches } from './core/quizCache';
@@ -297,6 +297,81 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
     }
   }
 );
+
+// POST /api/share-score - Share user's score as a comment on the post
+router.post('/api/share-score', async (req, res): Promise<void> => {
+  try {
+    const { postId, score, totalQuestions, subreddit, strategy } = req.body as {
+      postId?: string;
+      score: number;
+      totalQuestions: number;
+      subreddit: string;
+      strategy?: string;
+    };
+
+    // Validate required fields and types
+    if (!postId || typeof postId !== 'string' || !postId.trim()) {
+      res.status(400).json({ status: 'error', message: 'Post ID is required' });
+      return;
+    }
+    if (typeof score !== 'number' || isNaN(score) || typeof totalQuestions !== 'number' || isNaN(totalQuestions)) {
+      res.status(400).json({ status: 'error', message: 'Score and total questions must be valid numbers' });
+      return;
+    }
+    if (typeof subreddit !== 'string' || !subreddit.trim()) {
+      res.status(400).json({ status: 'error', message: 'Subreddit must be a valid string' });
+      return;
+    }
+    if (!strategy || typeof strategy !== 'string' || !strategy.trim()) {
+      res.status(400).json({ status: 'error', message: 'Strategy text is required' });
+      return;
+    }
+
+    const percentage = Math.round((score / totalQuestions) * 100);
+    const scoreText = `I scored ${score}/${totalQuestions} (${percentage}%) on today's How Hivemind r/ You? challenge for r/${subreddit}!`;
+    const commentText = `${scoreText}\n\n**What was your strategy?**\n\n${strategy.trim()}`;
+    const parentId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
+
+    await reddit.submitComment({ id: parentId, text: commentText, runAs: 'USER' });
+    res.json({ status: 'success', message: 'Score shared successfully' });
+  } catch (error) {
+    console.error('Error in share-score endpoint:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    res.status(500).json({
+      status: 'error',
+      message: `Failed to share score: ${errorMessage}`,
+    });
+  }
+});
+
+// POST /api/subscribe - Subscribe user to the current subreddit
+router.post('/api/subscribe', async (req, res): Promise<void> => {
+  try {
+    // According to Devvit docs, subscribeToCurrentSubreddit() subscribes as the user by default
+    // https://developers.reddit.com/docs/capabilities/server/userActions
+    try {
+      await reddit.subscribeToCurrentSubreddit();
+
+      res.json({
+        status: 'success',
+        message: 'Subscribed to the subreddit',
+      });
+    } catch (error) {
+      console.error('Error subscribing to subreddit:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({
+        status: 'error',
+        message: `Failed to subscribe: ${errorMessage}`,
+      });
+    }
+  } catch (error) {
+    console.error('Error in subscribe endpoint:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to process subscribe request',
+    });
+  }
+});
 
 // Use router middleware
 app.use(router);
