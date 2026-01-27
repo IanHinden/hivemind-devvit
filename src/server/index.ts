@@ -174,20 +174,25 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
     let subreddit = req.query.subreddit as string | undefined;
     let date = req.query.date as string | undefined;
     
-    // If postId is provided, try to get the post's original date/subreddit
-    if (postId && !subreddit) {
+    // If postId is provided, prioritize the post's original date/subreddit
+    // This ensures historical posts maintain their original quiz even if subreddit is also passed
+    if (postId) {
       const postMetaKey = `post_meta:${postId}`;
       const postMetaData = await redis.get(postMetaKey);
       
       if (postMetaData) {
         try {
           const postMeta = JSON.parse(postMetaData) as { date: string; subreddit: string };
+          // Override with post's original metadata to ensure historical accuracy
           subreddit = postMeta.subreddit;
           date = postMeta.date;
           console.log(`Using historical quiz for post ${postId}: date=${date}, subreddit=${subreddit}`);
         } catch (error) {
           console.error(`Failed to parse post metadata for ${postId}:`, error);
+          // If parsing fails, fall through to use provided subreddit or daily subreddit
         }
+      } else {
+        console.warn(`No metadata found for post ${postId}, using provided subreddit or daily subreddit`);
       }
     }
     
