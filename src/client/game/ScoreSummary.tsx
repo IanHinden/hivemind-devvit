@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { context } from '@devvit/web/client';
+import { context, navigateTo } from '@devvit/web/client';
 
 type ScoreSummaryProps = {
   score: number;
   totalQuestions: number;
   subreddit: string;
-  onRestart: () => void;
 };
 
 // Simple confetti effect using CSS animations
@@ -50,7 +49,7 @@ const Confetti = () => {
   );
 };
 
-export const ScoreSummary = ({ score, totalQuestions, subreddit, onRestart }: ScoreSummaryProps) => {
+export const ScoreSummary = ({ score, totalQuestions, subreddit }: ScoreSummaryProps) => {
   const [showConfetti, setShowConfetti] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -221,10 +220,11 @@ export const ScoreSummary = ({ score, totalQuestions, subreddit, onRestart }: Sc
             </button>
 
             <button
-              onClick={onRestart}
-              className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
+              type="button"
+              onClick={() => navigateTo(`https://www.reddit.com/r/${subreddit}`)}
+              className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
             >
-              Play Again
+              Visit r/{subreddit}
             </button>
           </div>
         </div>

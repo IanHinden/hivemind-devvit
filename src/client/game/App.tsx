@@ -331,7 +331,6 @@ export const App = () => {
         score={score}
         totalQuestions={quizData.length}
         subreddit={dailySubreddit}
-        onRestart={handleRestart}
       />
     );
   }
