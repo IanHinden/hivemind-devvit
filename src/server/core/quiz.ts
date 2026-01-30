@@ -20,33 +20,28 @@ async function fetchSubredditPostsWithDevvitAPI(
     
     // Transform Devvit post objects to our RedditPost format
     return posts.map((post: any) => {
-      // Devvit post objects might have a different structure
-      // Check if it's already in the format we need
-      if (post.data) {
-        return post.data;
-      }
-      
-      // Otherwise, transform it - Devvit's post structure
-      // Extract ID - might be in format t3_xxxxx, we need just the xxxxx part
-      let postId = post.id || post.postId || '';
+      const src = post.data ?? post;
+      let postId = (src.id || src.postId || '').toString();
       if (postId.startsWith('t3_')) {
         postId = postId.substring(3);
       }
-      
       return {
         id: postId,
-        title: post.title || '',
-        selftext: post.selftext || post.body || '',
-        url: post.url || '',
-        author: post.author || post.authorName || null,
-        permalink: post.permalink || `/r/${subreddit}/comments/${postId}`,
-        score: post.score || post.ups || 0,
-        num_comments: post.numComments || post.commentCount || 0,
-        over_18: post.over18 || post.nsfw || false,
-        is_video: post.isVideo || false,
-        media: post.media,
-        preview: post.preview,
-        gallery_data: post.galleryData,
+        title: src.title || '',
+        selftext: src.selftext ?? src.body ?? '',
+        url: src.url || '',
+        author: src.author ?? src.authorName ?? null,
+        permalink: src.permalink || `/r/${subreddit}/comments/${postId}`,
+        score: src.score ?? src.ups ?? 0,
+        num_comments: src.numComments ?? src.commentCount ?? 0,
+        over_18: src.over_18 ?? src.over18 ?? src.nsfw ?? false,
+        is_video: src.is_video ?? src.isVideo ?? false,
+        stickied: src.stickied ?? false,
+        distinguished: src.distinguished ?? null,
+        locked: src.locked ?? false,
+        media: src.media,
+        preview: src.preview,
+        gallery_data: src.galleryData ?? src.gallery_data,
       } as RedditPost['data'];
     });
   } catch (error) {
@@ -143,6 +138,9 @@ type RedditPost = {
     num_comments: number;
     over_18: boolean;
     is_video: boolean;
+    stickied?: boolean;
+    distinguished?: string | null;
+    locked?: boolean;
     media?: {
       reddit_video?: {
         fallback_url?: string;
@@ -180,19 +178,28 @@ type RedditCommentListing = {
   };
 };
 
+/** Minimum number of candidate posts to fetch so we still get 5 after quality filters */
+const CANDIDATE_POST_LIMIT = 30;
+
 /**
- * Fetch hot posts from a subreddit using Devvit's built-in Reddit API
+ * Fetch hot posts from a subreddit using Devvit's built-in Reddit API.
+ * Filters out NSFW, stickied, mod/distinguished, and locked posts.
  */
 export async function fetchSubredditPosts(
   subreddit: string,
-  limit: number = 10
+  limit: number = CANDIDATE_POST_LIMIT
 ): Promise<RedditPost['data'][]> {
-  // Use Devvit's built-in Reddit API
   const posts = await fetchSubredditPostsWithDevvitAPI(subreddit, limit);
-  
-  // Filter out deleted/removed posts
+
   return posts.filter((post) => {
-    return post.title && post.title !== '[deleted]' && post.title !== '[removed]';
+    if (!post.title || post.title === '[deleted]' || post.title === '[removed]') {
+      return false;
+    }
+    if (post.over_18) return false;
+    if (post.stickied) return false;
+    if (post.distinguished === 'moderator' || post.distinguished === 'admin') return false;
+    if (post.locked) return false;
+    return true;
   });
 }
 
@@ -247,25 +254,33 @@ function extractVideoUrl(post: RedditPost['data']): string | null {
 }
 
 /**
- * Transform Reddit post and comments into quiz question format
+ * Require at least 3 comments and a clear upvote winner (top > 2nd).
+ */
+function hasClearWinner(comments: RedditComment['data'][]): boolean {
+  if (comments.length < 3) return false;
+  const [first, second] = comments;
+  return first != null && second != null && first.ups > second.ups;
+}
+
+/**
+ * Transform Reddit post and comments into quiz question format.
+ * Only includes posts with ≥3 comments and a clear top comment (top upvotes > 2nd).
  */
 export function transformToQuizFormat(
   posts: RedditPost['data'][],
   commentsMap: Map<string, RedditComment['data'][]>
 ): QuizQuestion[] {
   const quizQuestions: QuizQuestion[] = [];
-  
+
   for (const post of posts) {
     const comments = commentsMap.get(post.id) || [];
-    
-    // Skip posts without enough comments
-    if (comments.length < 3) {
+    if (comments.length < 3 || !hasClearWinner(comments)) {
       continue;
     }
-    
+
     const imageUrls = extractImageUrls(post);
     const videoUrl = extractVideoUrl(post);
-    
+
     const quizQuestion: QuizQuestion = {
       postId: post.id,
       title: post.title,
@@ -276,7 +291,7 @@ export function transformToQuizFormat(
       isVideo: post.is_video || false,
       ...(videoUrl && { videoUrl }),
       author: post.author,
-      permalink: `https://www.reddit.com${post.permalink}`,
+      permalink: post.permalink.startsWith('http') ? post.permalink : `https://www.reddit.com${post.permalink}`,
       comments: comments.slice(0, 3).map((comment) => ({
         id: comment.id,
         body: comment.body,
@@ -284,25 +299,21 @@ export function transformToQuizFormat(
         author: comment.author,
       })),
     };
-    
+
     quizQuestions.push(quizQuestion);
-    
-    // Limit to 5 questions
-    if (quizQuestions.length >= 5) {
-      break;
-    }
+    if (quizQuestions.length >= 5) break;
   }
-  
+
   return quizQuestions;
 }
 
 /**
- * Fetch quiz data for a subreddit
- * This is the main function that orchestrates fetching posts, comments, and transforming to quiz format
+ * Fetch quiz data for a subreddit.
+ * Fetches more candidate posts so we still get 5 questions after filtering
+ * (NSFW, stickied, mod, locked, and "clear winner" comment requirement).
  */
 export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> {
-  // Fetch hot posts (fetch more than needed in case some don't have enough comments)
-  const posts = await fetchSubredditPosts(subreddit, 10);
+  const posts = await fetchSubredditPosts(subreddit);
   
   if (!posts || posts.length === 0) {
     throw new Error(`No posts found in r/${subreddit}. The subreddit may not exist, may be private, or may not have any posts.`);
@@ -336,12 +347,15 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
     }
   }
   
-  // Transform to quiz format
   const quizQuestions = transformToQuizFormat(posts, commentsMap);
-  
-  if (quizQuestions.length === 0) {
-    throw new Error(`Could not generate quiz questions for r/${subreddit}. Posts may not have enough comments, or comments may be deleted/removed.`);
+
+  if (quizQuestions.length < 5) {
+    throw new Error(
+      quizQuestions.length === 0
+        ? `Could not generate quiz questions for r/${subreddit}. Posts may be filtered out (NSFW, stickied, mod, locked) or lack enough comments with a clear top answer.`
+        : `Could not find 5 qualifying questions for r/${subreddit}. Only ${quizQuestions.length} passed filters (NSFW/stickied/mod/locked/clear-winner). Try another subreddit or time.`
+    );
   }
-  
+
   return quizQuestions;
 }
