@@ -38,7 +38,10 @@ const today = new Date();
 
 console.log('Today:', today.toISOString().split('T')[0], '→', getSubredditForDate(today, list));
 console.log('');
-console.log('Next subreddit (tomorrow):', getSubredditForDate(new Date(today.getTime() + 86400000), list));
+console.log(
+  'Next subreddit (tomorrow):',
+  getSubredditForDate(new Date(today.getTime() + 86400000), list)
+);
 console.log('');
 console.log('Upcoming days:');
 for (let i = 1; i <= daysAhead; i++) {

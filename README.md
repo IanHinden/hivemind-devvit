@@ -35,6 +35,7 @@ This template comes with a pre-configured cursor environment. To get started, [d
 This app uses **Devvit's native Reddit API** (`reddit.getHotPosts()` and `reddit.getComments()`) to fetch quiz data. No external HTTP fetch calls are made to Reddit's public API, so no domain permissions are required in `devvit.json`.
 
 **Quiz Data Source:**
+
 - The game fetches hot posts and top comments from Reddit subreddits using Devvit's built-in `reddit` object
 - Daily quiz caching is implemented using Devvit's Redis cache, ensuring all users get the same quiz questions each day
 - Cache automatically expires at midnight and refreshes with new data

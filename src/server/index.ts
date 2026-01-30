@@ -56,11 +56,11 @@ router.post('/internal/scheduled/daily-post', async (_req, res): Promise<void> =
   try {
     const dailySubreddit = getDailySubreddit();
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    
+
     // Check if we already created a post today (using Redis cache)
     const cacheKey = `daily_post:${today}`;
     const existingPost = await redis.get(cacheKey);
-    
+
     if (existingPost) {
       console.log(`Daily post already created for ${today}`);
       res.json({
@@ -70,17 +70,17 @@ router.post('/internal/scheduled/daily-post', async (_req, res): Promise<void> =
       });
       return;
     }
-    
+
     // Create the post (pass subreddit to avoid duplicate getDailySubreddit() call)
     const post = await createPost(dailySubreddit);
-    
+
     // Cache the post ID for today (expires at midnight)
     const midnight = new Date();
     midnight.setHours(24, 0, 0, 0);
     await redis.set(cacheKey, post.id, { expiration: midnight });
-    
+
     console.log(`Daily post created for ${today} with subreddit r/${dailySubreddit}`);
-    
+
     res.json({
       status: 'success',
       message: `Daily post created for ${today} with subreddit r/${dailySubreddit}`,
@@ -100,7 +100,7 @@ router.post('/internal/scheduled/daily-post', async (_req, res): Promise<void> =
 router.post('/api/clear-cache', async (req, res): Promise<void> => {
   try {
     const { subreddit } = req.body as { subreddit?: string };
-    
+
     if (subreddit) {
       await clearCachedQuiz(subreddit);
       res.json({
@@ -158,12 +158,12 @@ router.get('/api/next-subreddit', async (req, res): Promise<void> => {
 router.get('/api/daily-subreddit', async (req, res): Promise<void> => {
   try {
     const postId = req.query.postId as string | undefined;
-    
+
     // If postId is provided, try to get the post's original date/subreddit
     if (postId) {
       const postMetaKey = `post_meta:${postId}`;
       const postMetaData = await redis.get(postMetaKey);
-      
+
       if (postMetaData) {
         try {
           const postMeta = JSON.parse(postMetaData) as { date: string; subreddit: string };
@@ -179,7 +179,7 @@ router.get('/api/daily-subreddit', async (req, res): Promise<void> => {
         }
       }
     }
-    
+
     // Default: return today's subreddit
     const dailySubreddit = getDailySubreddit();
     res.json({
@@ -204,34 +204,38 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
     const postId = req.query.postId as string | undefined;
     let subreddit = req.query.subreddit as string | undefined;
     let date = req.query.date as string | undefined;
-    
+
     // If postId is provided, prioritize the post's original date/subreddit
     // This ensures historical posts maintain their original quiz even if subreddit is also passed
     if (postId) {
       const postMetaKey = `post_meta:${postId}`;
       const postMetaData = await redis.get(postMetaKey);
-      
+
       if (postMetaData) {
         try {
           const postMeta = JSON.parse(postMetaData) as { date: string; subreddit: string };
           // Override with post's original metadata to ensure historical accuracy
           subreddit = postMeta.subreddit;
           date = postMeta.date;
-          console.log(`Using historical quiz for post ${postId}: date=${date}, subreddit=${subreddit}`);
+          console.log(
+            `Using historical quiz for post ${postId}: date=${date}, subreddit=${subreddit}`
+          );
         } catch (error) {
           console.error(`Failed to parse post metadata for ${postId}:`, error);
           // If parsing fails, fall through to use provided subreddit or daily subreddit
         }
       } else {
-        console.warn(`No metadata found for post ${postId}, using provided subreddit or daily subreddit`);
+        console.warn(
+          `No metadata found for post ${postId}, using provided subreddit or daily subreddit`
+        );
       }
     }
-    
+
     // If no subreddit provided, use the daily subreddit
     if (!subreddit) {
       subreddit = getDailySubreddit();
     }
-    
+
     // Validate subreddit name
     if (!subreddit || subreddit.trim().length === 0) {
       res.status(400).json({
@@ -242,11 +246,11 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
       } as ErrorResponse);
       return;
     }
-    
+
     try {
       // Check Redis cache first (use provided date or today's date)
       const cachedQuiz = await getCachedQuiz(subreddit, date);
-      
+
       if (cachedQuiz && cachedQuiz.length > 0) {
         console.log(`Returning cached quiz for r/${subreddit}`);
         res.json({
@@ -254,13 +258,13 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
         });
         return;
       }
-      
+
       // Cache miss - fetch from Reddit API
       console.log(`Cache miss for r/${subreddit}, fetching from Reddit API...`);
-      
+
       try {
         const quizData = await fetchQuizData(subreddit);
-        
+
         if (quizData.length === 0) {
           // Try to provide helpful error message
           const errorResponse: ErrorResponse = {
@@ -273,10 +277,10 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
           res.status(404).json(errorResponse);
           return;
         }
-        
+
         // Cache the quiz data (use provided date or today's date, expires in 30 days)
         await cacheQuiz(subreddit, quizData, date);
-        
+
         res.json({
           quiz: quizData,
         });
@@ -286,16 +290,24 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
         let errorType: ErrorType = 'UNKNOWN_ERROR';
         let retryable = false;
         let suggestion = 'Please try again later';
-        
+
         // Categorize errors
-        if (errorMessage.includes('not found') || errorMessage.includes('does not exist') || errorMessage.includes('404')) {
+        if (
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('404')
+        ) {
           errorType = 'SUBREDDIT_NOT_FOUND';
           suggestion = 'Please check the subreddit name and try a different one';
         } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
           errorType = 'RATE_LIMIT';
           retryable = true;
           suggestion = 'Reddit is rate limiting requests. Please wait a moment and try again';
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('timeout')) {
+        } else if (
+          errorMessage.includes('network') ||
+          errorMessage.includes('fetch') ||
+          errorMessage.includes('timeout')
+        ) {
           errorType = 'NETWORK_ERROR';
           retryable = true;
           suggestion = 'Network error occurred. Please check your connection and try again';
@@ -303,7 +315,7 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
           errorType = 'API_ERROR';
           suggestion = 'Unable to access Reddit data. The subreddit may be private or restricted';
         }
-        
+
         const errorResponse: ErrorResponse = {
           status: 'error',
           message: errorMessage,
@@ -311,8 +323,12 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
           retryable,
           suggestion,
         };
-        
-        res.status(errorType === 'SUBREDDIT_NOT_FOUND' ? 404 : errorType === 'RATE_LIMIT' ? 429 : 500).json(errorResponse);
+
+        res
+          .status(
+            errorType === 'SUBREDDIT_NOT_FOUND' ? 404 : errorType === 'RATE_LIMIT' ? 429 : 500
+          )
+          .json(errorResponse);
         return;
       }
     } catch (error) {
@@ -345,8 +361,15 @@ router.post('/api/share-score', async (req, res): Promise<void> => {
       res.status(400).json({ status: 'error', message: 'Post ID is required' });
       return;
     }
-    if (typeof score !== 'number' || isNaN(score) || typeof totalQuestions !== 'number' || isNaN(totalQuestions)) {
-      res.status(400).json({ status: 'error', message: 'Score and total questions must be valid numbers' });
+    if (
+      typeof score !== 'number' ||
+      isNaN(score) ||
+      typeof totalQuestions !== 'number' ||
+      isNaN(totalQuestions)
+    ) {
+      res
+        .status(400)
+        .json({ status: 'error', message: 'Score and total questions must be valid numbers' });
       return;
     }
     if (typeof subreddit !== 'string' || !subreddit.trim()) {

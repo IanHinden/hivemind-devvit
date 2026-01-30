@@ -37,7 +37,7 @@ export type DailySubredditResponse = {
 };
 
 // Error types for better error handling
-export type ErrorType = 
+export type ErrorType =
   | 'NETWORK_ERROR'
   | 'SUBREDDIT_NOT_FOUND'
   | 'INSUFFICIENT_DATA'

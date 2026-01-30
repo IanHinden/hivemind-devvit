@@ -51,7 +51,13 @@ const Confetti = () => {
   );
 };
 
-export const ScoreSummary = ({ score, totalQuestions, subreddit, allowShare, onRestart }: ScoreSummaryProps) => {
+export const ScoreSummary = ({
+  score,
+  totalQuestions,
+  subreddit,
+  allowShare,
+  onRestart,
+}: ScoreSummaryProps) => {
   const [showConfetti, setShowConfetti] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -135,29 +141,25 @@ export const ScoreSummary = ({ score, totalQuestions, subreddit, allowShare, onR
   const getScoreMessage = () => {
     const percentage = Math.round((score / totalQuestions) * 100);
     if (percentage === 100) return "Perfect score! You're a Reddit hivemind master!";
-    if (percentage >= 80) return "Excellent! You really understand the Reddit hivemind!";
+    if (percentage >= 80) return 'Excellent! You really understand the Reddit hivemind!';
     if (percentage >= 60) return "Great job! You're getting the hang of it!";
-    if (percentage >= 40) return "Not bad! Keep practicing!";
-    return "Keep trying! The hivemind is tricky!";
+    if (percentage >= 40) return 'Not bad! Keep practicing!';
+    return 'Keep trying! The hivemind is tricky!';
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 flex items-center justify-center p-4 relative">
       {showConfetti && <Confetti />}
-      
+
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl border-2 border-orange-200 p-6 relative z-10">
         <div className="text-center">
           {/* Score Display */}
           <div className="mb-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              Quiz Complete!
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
             <div className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mb-2">
               {score}/{totalQuestions}
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed">
-              {getScoreMessage()}
-            </p>
+            <p className="text-gray-700 text-sm leading-relaxed">{getScoreMessage()}</p>
           </div>
 
           {/* Share Score Form - only on first completion; after Play Again, score is locked in */}
@@ -182,9 +184,25 @@ export const ScoreSummary = ({ score, totalQuestions, subreddit, allowShare, onR
               >
                 {shareLoading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Posting comment...
                   </>
@@ -214,9 +232,25 @@ export const ScoreSummary = ({ score, totalQuestions, subreddit, allowShare, onR
             >
               {subscribeLoading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Subscribing...
                 </>

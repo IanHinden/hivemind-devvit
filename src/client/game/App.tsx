@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { context } from '@devvit/web/client';
-import type { QuizResponse, QuizQuestion, ErrorResponse, DailySubredditResponse } from '../../shared/types/api';
+import type {
+  QuizResponse,
+  QuizQuestion,
+  ErrorResponse,
+  DailySubredditResponse,
+} from '../../shared/types/api';
 import { QuizQuestionComponent } from './QuizQuestion';
 import { ScoreSummary } from './ScoreSummary';
 
@@ -22,10 +27,10 @@ export const App = () => {
       try {
         // Get post ID from context if available (for historical posts)
         const postId = context?.postId;
-        const url = postId 
+        const url = postId
           ? `/api/daily-subreddit?postId=${encodeURIComponent(postId)}`
           : '/api/daily-subreddit';
-        
+
         const response = await fetch(url);
         if (response.ok) {
           const data: DailySubredditResponse = await response.json();
@@ -53,9 +58,9 @@ export const App = () => {
       const url = postId
         ? `/api/quiz?subreddit=${encodeURIComponent(subreddit)}&postId=${encodeURIComponent(postId)}`
         : `/api/quiz?subreddit=${encodeURIComponent(subreddit)}`;
-      
+
       const response = await fetch(url);
-      
+
       if (!response.ok) {
         const errorData: ErrorResponse = await response.json().catch(() => ({
           status: 'error' as const,
@@ -63,19 +68,19 @@ export const App = () => {
           type: 'UNKNOWN_ERROR' as const,
           retryable: response.status >= 500,
         }));
-        
+
         // Retry logic for retryable errors
         if (errorData.retryable && retryAttempt < 2) {
           console.log(`Retrying quiz load (attempt ${retryAttempt + 1}/2)...`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryAttempt + 1))); // Exponential backoff
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (retryAttempt + 1))); // Exponential backoff
           return loadQuiz(subreddit, retryAttempt + 1);
         }
-        
+
         throw errorData;
       }
 
       const data: QuizResponse = await response.json();
-      
+
       if (!data.quiz || data.quiz.length === 0) {
         throw {
           status: 'error' as const,
@@ -85,20 +90,21 @@ export const App = () => {
           suggestion: 'Try selecting a different subreddit',
         } as ErrorResponse;
       }
-      
+
       setQuizData(data.quiz);
       setQuizStarted(true);
       setRetryCount(0);
     } catch (err) {
-      const errorData: ErrorResponse = err instanceof Error 
-        ? {
-            status: 'error',
-            message: err.message,
-            type: 'UNKNOWN_ERROR',
-            retryable: true,
-          }
-        : err as ErrorResponse;
-      
+      const errorData: ErrorResponse =
+        err instanceof Error
+          ? {
+              status: 'error',
+              message: err.message,
+              type: 'UNKNOWN_ERROR',
+              retryable: true,
+            }
+          : (err as ErrorResponse);
+
       setError(errorData);
       setRetryCount(retryAttempt);
     } finally {
@@ -137,9 +143,25 @@ export const App = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
             <div className="text-center">
-              <svg className="animate-spin mx-auto h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin mx-auto h-8 w-8 text-orange-500 mb-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               <p className="text-gray-600">Loading today's challenge...</p>
             </div>
@@ -152,10 +174,10 @@ export const App = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
           <div className="flex flex-col items-center mb-6">
-            <img 
-              className="object-contain w-1/2 max-w-[200px] mb-4" 
-              src="/logo.png" 
-              alt="How Hivemind r/ You?" 
+            <img
+              className="object-contain w-1/2 max-w-[200px] mb-4"
+              src="/logo.png"
+              alt="How Hivemind r/ You?"
               loading="eager"
               decoding="async"
             />
@@ -168,14 +190,18 @@ export const App = () => {
               </p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                   <div className="ml-3 flex-1">
@@ -187,13 +213,9 @@ export const App = () => {
                       {error.type === 'API_ERROR' && 'API Error'}
                       {!error.type && 'Error Loading Quiz'}
                     </h3>
-                    <p className="mt-1 text-sm text-red-700">
-                      {error.message}
-                    </p>
+                    <p className="mt-1 text-sm text-red-700">{error.message}</p>
                     {error.suggestion && (
-                      <p className="mt-2 text-sm text-red-600">
-                        💡 {error.suggestion}
-                      </p>
+                      <p className="mt-2 text-sm text-red-600">💡 {error.suggestion}</p>
                     )}
                     {error.retryable && retryCount < 2 && (
                       <button
@@ -220,9 +242,25 @@ export const App = () => {
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Loading Quiz...
                 </>
@@ -249,9 +287,25 @@ export const App = () => {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
         <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg p-6">
           <div className="text-center">
-            <svg className="animate-spin mx-auto h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="animate-spin mx-auto h-8 w-8 text-orange-500 mb-4"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
             <p className="text-gray-600">Loading quiz...</p>
           </div>
@@ -265,12 +319,8 @@ export const App = () => {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
         <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg p-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              No Questions Available
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Could not load quiz questions. Please try again.
-            </p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">No Questions Available</h2>
+            <p className="text-gray-600 mb-4">Could not load quiz questions. Please try again.</p>
             <button
               onClick={handleRestart}
               className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium py-2 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg"
@@ -284,15 +334,13 @@ export const App = () => {
   }
 
   const currentQuestion = quizData[currentQuestionIndex];
-  
+
   if (!currentQuestion || currentQuestion.comments.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center p-4">
         <div className="max-w-4xl w-full bg-white rounded-lg shadow-lg p-6">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Error Loading Question
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Error Loading Question</h2>
             <button
               onClick={handleRestart}
               className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-medium py-2 px-4 rounded transition-all duration-200 transform hover:scale-105 shadow-lg"

@@ -15,14 +15,17 @@ export function getDailyCacheKey(subreddit: string, date?: string): string {
  * @param subreddit - The subreddit name
  * @param date - Optional date string (YYYY-MM-DD). If not provided, uses today's date.
  */
-export async function getCachedQuiz(subreddit: string, date?: string): Promise<QuizQuestion[] | null> {
+export async function getCachedQuiz(
+  subreddit: string,
+  date?: string
+): Promise<QuizQuestion[] | null> {
   const cacheKey = getDailyCacheKey(subreddit, date);
   const cachedData = await redis.get(cacheKey);
-  
+
   if (!cachedData) {
     return null;
   }
-  
+
   try {
     return JSON.parse(cachedData) as QuizQuestion[];
   } catch (error) {
@@ -38,16 +41,22 @@ export async function getCachedQuiz(subreddit: string, date?: string): Promise<Q
  * @param quizData - The quiz data to cache
  * @param date - Optional date string (YYYY-MM-DD). If not provided, uses today's date.
  */
-export async function cacheQuiz(subreddit: string, quizData: QuizQuestion[], date?: string): Promise<void> {
+export async function cacheQuiz(
+  subreddit: string,
+  quizData: QuizQuestion[],
+  date?: string
+): Promise<void> {
   const cacheKey = getDailyCacheKey(subreddit, date);
   // Set expiration to 30 days from now (allows users to replay old posts)
   const expiration = new Date();
   expiration.setDate(expiration.getDate() + 30);
-  
+
   try {
     await redis.set(cacheKey, JSON.stringify(quizData), { expiration });
     const ttl = Math.floor((expiration.getTime() - Date.now()) / 1000);
-    console.log(`Cached quiz for r/${subreddit} (date: ${date || 'today'}) with TTL ${ttl} seconds (30 days)`);
+    console.log(
+      `Cached quiz for r/${subreddit} (date: ${date || 'today'}) with TTL ${ttl} seconds (30 days)`
+    );
   } catch (error) {
     console.error(`Failed to cache quiz data for ${subreddit}:`, error);
     // Don't throw - caching failure shouldn't break the request
@@ -89,7 +98,7 @@ export async function clearAllQuizCaches(): Promise<void> {
       'mildlyinteresting',
       'gifs',
     ];
-    
+
     const keys = commonSubreddits.map((sub) => getDailyCacheKey(sub));
     if (keys.length > 0) {
       // Delete each key individually

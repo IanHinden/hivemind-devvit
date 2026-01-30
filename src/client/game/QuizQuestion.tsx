@@ -62,10 +62,10 @@ export const QuizQuestionComponent = ({
     e.preventDefault();
     e.stopPropagation();
     // Permalink might already include the full URL or just the path
-    const url = question.permalink.startsWith('http') 
-      ? question.permalink 
+    const url = question.permalink.startsWith('http')
+      ? question.permalink
       : `https://www.reddit.com${question.permalink}`;
-    
+
     // Copy URL to clipboard since window.open is blocked in Devvit's sandbox
     try {
       await navigator.clipboard.writeText(url);
@@ -87,9 +87,7 @@ export const QuizQuestionComponent = ({
     <div>
       {/* Question */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-3">
-          {question.title}
-        </h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3">{question.title}</h2>
 
         {question.selftext && (
           <p className="text-sm text-gray-700 mb-4 whitespace-pre-wrap leading-relaxed">
@@ -98,16 +96,10 @@ export const QuizQuestionComponent = ({
         )}
 
         {question.imageUrl && (
-          <img
-            src={question.imageUrl}
-            alt="Post"
-            className="max-w-full h-auto rounded-lg mb-4"
-          />
+          <img src={question.imageUrl} alt="Post" className="max-w-full h-auto rounded-lg mb-4" />
         )}
 
-        <p className="text-sm text-gray-500 mb-6">
-          Can you guess the top comment?
-        </p>
+        <p className="text-sm text-gray-500 mb-6">Can you guess the top comment?</p>
       </div>
 
       {/* Answer options */}
@@ -116,20 +108,20 @@ export const QuizQuestionComponent = ({
           const isSelected = selectedCommentId === comment.id;
           const isTopComment = comment.id === topCommentId;
 
-          let buttonClass = "w-full p-4 text-left border-2 rounded-lg transition-all duration-200 ";
+          let buttonClass = 'w-full p-4 text-left border-2 rounded-lg transition-all duration-200 ';
 
           if (showAnswer) {
             if (isTopComment) {
-              buttonClass += "bg-green-100 border-green-500 text-green-800";
+              buttonClass += 'bg-green-100 border-green-500 text-green-800';
             } else if (isSelected) {
-              buttonClass += "bg-red-100 border-red-500 text-red-800";
+              buttonClass += 'bg-red-100 border-red-500 text-red-800';
             } else {
-              buttonClass += "bg-gray-50 border-gray-300 text-gray-600";
+              buttonClass += 'bg-gray-50 border-gray-300 text-gray-600';
             }
           } else {
             buttonClass += isSelected
-              ? "bg-blue-100 border-blue-500 text-blue-800"
-              : "bg-white border-gray-300 hover:border-orange-400 hover:bg-orange-50 text-gray-800 cursor-pointer";
+              ? 'bg-blue-100 border-blue-500 text-blue-800'
+              : 'bg-white border-gray-300 hover:border-orange-400 hover:bg-orange-50 text-gray-800 cursor-pointer';
           }
 
           return (
@@ -177,7 +169,7 @@ export const QuizQuestionComponent = ({
               ❌ Not quite. The top comment was: "{topComment.body.substring(0, 100)}..."
             </p>
           )}
-          
+
           {/* View on Reddit link */}
           <div className="mt-4 text-center relative z-10">
             <button
@@ -188,14 +180,24 @@ export const QuizQuestionComponent = ({
               {urlCopied ? (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                   <span className="text-green-600">URL copied! Paste in a new tab</span>
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
                   </svg>
                   <span>Copy thread URL</span>
                 </>

@@ -3,24 +3,59 @@
  * These subreddits are curated to ensure quality content and appropriate topics
  */
 export const APPROVED_SUBREDDITS = [
-  'AskReddit',
-  'pics',
-  'todayilearned',
-  'explainlikeimfive',
-  'Showerthoughts',
-  'LifeProTips',
+  'UnexpectedlySatisfying',
+  'AnimalsBeingJerks',
+  'tea',
+  'HappyAnimals',
+  'BrandNewSentence',
+  'AccidentalWesAnderson',
+  'PerfectTiming',
+  'AnimalsBeingConfused',
+  'rareinsults',
+  'DIY',
+  'WholesomeComics',
+  'food',
+  'Unexpected',
+  'HappyCowGifs',
   'mildlyinteresting',
-  'gifs',
+  'ArtisanVideos',
+  'AnimalsBeingDerps',
+  'AskReddit',
+  'AccidentalRenaissance',
+  'nextfuckinglevel',
+  'coffee',
+  'PointlessStories',
+  'WholesomeMemes',
+  'FirstWorldProblems',
+  'cooking',
+  'engrish',
+  'HumansBeingCute',
+  'BuyItForLife',
+  'KindVoice',
+  'AnimalsBeingBros',
+  'NoStupidQuestions',
+  'UnexpectedlyWholesome',
+  'CrappyDesign',
+  'boardgames',
+  'Showerthoughts',
+  'HappyCrowds',
   'funny',
-  'wholesomememes',
-  'YouShouldKnow',
-  'tifu',
-  'AmItheAsshole',
-  'unpopularopinion',
-  'changemyview',
+  'pareidolia',
+  'lego',
+  'Wellthatsucks',
+  'interestingasfuck',
+  'UpliftingNews',
+  'memes',
+  'MadeMeSmile',
+  'AnimalsBeingConfused',
+  'UnexpectedCat',
+  'pics',
+  'oddlysatisfying',
+  'HumansBeingBros',
+  'UnexpectedGoose',
 ] as const;
 
-export type ApprovedSubreddit = typeof APPROVED_SUBREDDITS[number];
+export type ApprovedSubreddit = (typeof APPROVED_SUBREDDITS)[number];
 
 /**
  * Get the daily subreddit based on the day of the year
@@ -33,7 +68,7 @@ export function getDailySubreddit(): ApprovedSubreddit {
   const start = new Date(now.getFullYear(), 0, 0);
   const diff = now.getTime() - start.getTime();
   const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  
+
   // Use modulo to cycle through subreddits
   const index = dayOfYear % APPROVED_SUBREDDITS.length;
   return APPROVED_SUBREDDITS[index]!;
@@ -46,7 +81,7 @@ export function getDailySubredditForDate(date: Date): ApprovedSubreddit {
   const start = new Date(date.getFullYear(), 0, 0);
   const diff = date.getTime() - start.getTime();
   const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-  
+
   const index = dayOfYear % APPROVED_SUBREDDITS.length;
   return APPROVED_SUBREDDITS[index]!;
 }

@@ -8,17 +8,15 @@ import { createRoot } from 'react-dom/client';
 export const Splash = () => {
   return (
     <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
-      <img 
-        className="object-contain w-1/2 max-w-[250px] mx-auto" 
-        src="/logo.png" 
-        alt="How Hivemind r/ You?" 
+      <img
+        className="object-contain w-1/2 max-w-[250px] mx-auto"
+        src="/logo.png"
+        alt="How Hivemind r/ You?"
         loading="eager"
         decoding="async"
       />
       <div className="flex flex-col items-center gap-2">
-        <h1 className="text-2xl font-bold text-center text-gray-900 ">
-          How Hivemind r/ You?
-        </h1>
+        <h1 className="text-2xl font-bold text-center text-gray-900 ">How Hivemind r/ You?</h1>
         <p className="text-base text-center text-gray-600 ">
           Can you guess the top comment on recent Reddit posts?
         </p>

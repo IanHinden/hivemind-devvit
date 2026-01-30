@@ -14,10 +14,10 @@ async function fetchSubredditPostsWithDevvitAPI(
       subredditName: subreddit,
       limit: limit,
     });
-    
+
     // Extract posts from Listing - Listing has an all() method that returns Promise<Post[]>
     const posts = await listing.all();
-    
+
     // Transform Devvit post objects to our RedditPost format
     return posts.map((post: any) => {
       const src = post.data ?? post;
@@ -61,18 +61,18 @@ async function fetchPostCommentsWithDevvitAPI(
     // Use Devvit's getComments method - returns Listing<Comment>
     // postId needs to be in format t3_xxxxx
     const fullPostId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
-    
+
     const listing = await reddit.getComments({
       postId: fullPostId as `t3_${string}`,
       limit: limit,
     });
-    
+
     // Extract comments from Listing - Listing has an all() method that returns Promise<Comment[]>
     const comments = await listing.all();
-    
+
     // Transform Devvit comment objects to our RedditComment format
     const transformedComments: RedditComment['data'][] = [];
-    
+
     function extractComments(commentsArray: any[]): void {
       for (const comment of commentsArray) {
         // Skip deleted/removed comments
@@ -89,33 +89,31 @@ async function fetchPostCommentsWithDevvitAPI(
             author: comment.author || comment.authorName || null,
             score: comment.score || comment.ups || 0,
           };
-          
+
           // Add replies if they exist
           if (comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0) {
             transformed.replies = { data: { children: comment.replies } };
           }
-          
+
           transformedComments.push(transformed);
-          
+
           // Recursively extract replies if they exist
           if (comment.replies && Array.isArray(comment.replies)) {
             extractComments(comment.replies);
           }
         }
-        
+
         // Stop if we have enough comments
         if (transformedComments.length >= limit) {
           break;
         }
       }
     }
-    
+
     extractComments(comments);
-    
+
     // Sort by score (ups) descending and take top N
-    return transformedComments
-      .sort((a, b) => b.ups - a.ups)
-      .slice(0, limit);
+    return transformedComments.sort((a, b) => b.ups - a.ups).slice(0, limit);
   } catch (error) {
     console.error(`Error fetching comments with Devvit API for post ${postId}:`, error);
     console.error('Error details:', error instanceof Error ? error.stack : error);
@@ -220,7 +218,7 @@ export async function fetchPostComments(
  */
 function extractImageUrls(post: RedditPost['data']): string[] {
   const imageUrls: string[] = [];
-  
+
   // Check for preview images
   if (post.preview?.images) {
     for (const image of post.preview.images) {
@@ -234,12 +232,12 @@ function extractImageUrls(post: RedditPost['data']): string[] {
       }
     }
   }
-  
+
   // If it's a direct image link, add it
   if (post.url && /\.(jpg|jpeg|png|gif|webp)$/i.test(post.url)) {
     imageUrls.push(post.url);
   }
-  
+
   return imageUrls;
 }
 
@@ -291,7 +289,9 @@ export function transformToQuizFormat(
       isVideo: post.is_video || false,
       ...(videoUrl && { videoUrl }),
       author: post.author,
-      permalink: post.permalink.startsWith('http') ? post.permalink : `https://www.reddit.com${post.permalink}`,
+      permalink: post.permalink.startsWith('http')
+        ? post.permalink
+        : `https://www.reddit.com${post.permalink}`,
       comments: comments.slice(0, 3).map((comment) => ({
         id: comment.id,
         body: comment.body,
@@ -314,11 +314,13 @@ export function transformToQuizFormat(
  */
 export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> {
   const posts = await fetchSubredditPosts(subreddit);
-  
+
   if (!posts || posts.length === 0) {
-    throw new Error(`No posts found in r/${subreddit}. The subreddit may not exist, may be private, or may not have any posts.`);
+    throw new Error(
+      `No posts found in r/${subreddit}. The subreddit may not exist, may be private, or may not have any posts.`
+    );
   }
-  
+
   // Fetch comments for each post in parallel
   // Note: getComments needs the full post ID in t3_xxxxx format
   // We only need 3 comments per post, so fetch 5 to have some buffer
@@ -327,15 +329,15 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
     const postId = (post as any).originalId || post.id;
     // Ensure it's in t3_ format for getComments
     const fullPostId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
-    
+
     return fetchPostComments(subreddit, fullPostId, 5).catch((error) => {
       console.error(`Failed to fetch comments for post ${post.id}:`, error);
       return []; // Return empty array on error - post will be skipped
     });
   });
-  
+
   const commentsArrays = await Promise.all(commentPromises);
-  
+
   // Create a map of postId -> comments
   // Use the normalized post.id (without t3_ prefix) as the key
   const commentsMap = new Map<string, RedditComment['data'][]>();
@@ -346,7 +348,7 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
       commentsMap.set(post.id, comments);
     }
   }
-  
+
   const quizQuestions = transformToQuizFormat(posts, commentsMap);
 
   if (quizQuestions.length < 5) {
