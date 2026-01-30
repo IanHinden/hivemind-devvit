@@ -12,6 +12,7 @@ export const App = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [hasCompletedOnce, setHasCompletedOnce] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
 
@@ -119,6 +120,7 @@ export const App = () => {
   };
 
   const handleRestart = () => {
+    setHasCompletedOnce(true); // Lock score: after Play Again, they can't share again
     setQuizStarted(false);
     setQuizCompleted(false);
     setQuizData([]);
@@ -331,6 +333,8 @@ export const App = () => {
         score={score}
         totalQuestions={quizData.length}
         subreddit={dailySubreddit}
+        allowShare={!hasCompletedOnce} // false after they've clicked Play Again
+        onRestart={handleRestart}
       />
     );
   }

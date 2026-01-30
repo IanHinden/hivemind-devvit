@@ -5,6 +5,8 @@ type ScoreSummaryProps = {
   score: number;
   totalQuestions: number;
   subreddit: string;
+  allowShare: boolean;
+  onRestart: () => void;
 };
 
 // Simple confetti effect using CSS animations
@@ -49,7 +51,7 @@ const Confetti = () => {
   );
 };
 
-export const ScoreSummary = ({ score, totalQuestions, subreddit }: ScoreSummaryProps) => {
+export const ScoreSummary = ({ score, totalQuestions, subreddit, allowShare, onRestart }: ScoreSummaryProps) => {
   const [showConfetti, setShowConfetti] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
@@ -158,40 +160,46 @@ export const ScoreSummary = ({ score, totalQuestions, subreddit }: ScoreSummaryP
             </p>
           </div>
 
-          {/* Share Score Form */}
-          <form onSubmit={handleShareScore} className="mb-4">
-            <textarea
-              value={strategyText}
-              onChange={(e) => setStrategyText(e.target.value)}
-              placeholder="What was your strategy?"
-              className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none resize-none text-sm"
-              rows={3}
-              disabled={shareLoading || shareSuccess}
-            />
-            <button
-              type="submit"
-              disabled={shareLoading || shareSuccess || !strategyText.trim()}
-              className={`w-full mt-2 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-[1.02] shadow-md ${
-                shareLoading || shareSuccess || !strategyText.trim()
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white hover:shadow-lg'
-              }`}
-            >
-              {shareLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Posting comment...
-                </>
-              ) : shareSuccess ? (
-                'Score posted in comments!'
-              ) : (
-                'Share Score to Thread'
-              )}
-            </button>
-          </form>
+          {/* Share Score Form - only on first completion; after Play Again, score is locked in */}
+          {allowShare ? (
+            <form onSubmit={handleShareScore} className="mb-4">
+              <textarea
+                value={strategyText}
+                onChange={(e) => setStrategyText(e.target.value)}
+                placeholder="What was your strategy?"
+                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none resize-none text-sm"
+                rows={3}
+                disabled={shareLoading || shareSuccess}
+              />
+              <button
+                type="submit"
+                disabled={shareLoading || shareSuccess || !strategyText.trim()}
+                className={`w-full mt-2 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all duration-200 transform hover:scale-[1.02] shadow-md ${
+                  shareLoading || shareSuccess || !strategyText.trim()
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white hover:shadow-lg'
+                }`}
+              >
+                {shareLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Posting comment...
+                  </>
+                ) : shareSuccess ? (
+                  'Score posted in comments!'
+                ) : (
+                  'Share Score to Thread'
+                )}
+              </button>
+            </form>
+          ) : (
+            <p className="mb-4 text-sm text-gray-600">
+              Your score is locked in. Replaying is just for fun!
+            </p>
+          )}
 
           {/* Action Buttons */}
           <div className="space-y-2.5">
@@ -225,6 +233,14 @@ export const ScoreSummary = ({ score, totalQuestions, subreddit }: ScoreSummaryP
               className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
             >
               Visit r/{subreddit}
+            </button>
+
+            <button
+              type="button"
+              onClick={onRestart}
+              className="w-full py-2.5 px-4 rounded-lg font-semibold text-sm bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white transition-all duration-200 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
+            >
+              Play Again
             </button>
           </div>
         </div>
