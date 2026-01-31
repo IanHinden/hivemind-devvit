@@ -92,6 +92,7 @@ export const App = () => {
       }
 
       setQuizData(data.quiz);
+      if (data.subreddit) setDailySubreddit(data.subreddit);
       setQuizStarted(true);
       setRetryCount(0);
     } catch (err) {

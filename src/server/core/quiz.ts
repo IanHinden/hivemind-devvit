@@ -39,6 +39,7 @@ async function fetchSubredditPostsWithDevvitAPI(
         stickied: src.stickied ?? false,
         distinguished: src.distinguished ?? null,
         locked: src.locked ?? false,
+        crosspost_parent: src.crosspost_parent ?? src.crosspostParent ?? null,
         media: src.media,
         preview: src.preview,
         gallery_data: src.galleryData ?? src.gallery_data,
@@ -139,6 +140,8 @@ type RedditPost = {
     stickied?: boolean;
     distinguished?: string | null;
     locked?: boolean;
+    /** Set when post is a crosspost from another subreddit */
+    crosspost_parent?: string | null;
     media?: {
       reddit_video?: {
         fallback_url?: string;
@@ -181,7 +184,7 @@ const CANDIDATE_POST_LIMIT = 30;
 
 /**
  * Fetch hot posts from a subreddit using Devvit's built-in Reddit API.
- * Filters out NSFW, stickied, mod/distinguished, and locked posts.
+ * Filters out NSFW, stickied, mod/distinguished, locked, and crossposts.
  */
 export async function fetchSubredditPosts(
   subreddit: string,
@@ -197,6 +200,7 @@ export async function fetchSubredditPosts(
     if (post.stickied) return false;
     if (post.distinguished === 'moderator' || post.distinguished === 'admin') return false;
     if (post.locked) return false;
+    if (post.crosspost_parent) return false;
     return true;
   });
 }
@@ -261,6 +265,23 @@ function hasClearWinner(comments: RedditComment['data'][]): boolean {
 }
 
 /**
+ * Total character length of OP (title + selftext) plus top 3 comment bodies.
+ * Used to prefer shorter content to reduce scrolling. Returns Infinity if post doesn't qualify.
+ */
+function getContentLength(
+  post: RedditPost['data'],
+  commentsMap: Map<string, RedditComment['data'][]>
+): number {
+  const comments = commentsMap.get(post.id) ?? [];
+  if (comments.length < 3 || !hasClearWinner(comments)) return Number.POSITIVE_INFINITY;
+  const opLength = (post.title ?? '').length + (post.selftext ?? '').length;
+  const commentLength = comments
+    .slice(0, 3)
+    .reduce((sum, c) => sum + (c.body ?? '').length, 0);
+  return opLength + commentLength;
+}
+
+/**
  * Transform Reddit post and comments into quiz question format.
  * Only includes posts with ≥3 comments and a clear top comment (top upvotes > 2nd).
  */
@@ -310,7 +331,8 @@ export function transformToQuizFormat(
 /**
  * Fetch quiz data for a subreddit.
  * Fetches more candidate posts so we still get 5 questions after filtering
- * (NSFW, stickied, mod, locked, and "clear winner" comment requirement).
+ * (NSFW, stickied, mod, locked, crosspost, and "clear winner" comment requirement).
+ * Among qualifying posts, picks the 5 with shortest OP + top 3 comments to reduce scrolling.
  */
 export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> {
   const posts = await fetchSubredditPosts(subreddit);
@@ -349,13 +371,17 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
     }
   }
 
-  const quizQuestions = transformToQuizFormat(posts, commentsMap);
+  // Prefer shortest OP + comments to reduce scrolling; pick 5 from the shortest qualifying posts
+  const sortedPosts = [...posts].sort(
+    (a, b) => getContentLength(a, commentsMap) - getContentLength(b, commentsMap)
+  );
+  const quizQuestions = transformToQuizFormat(sortedPosts, commentsMap);
 
   if (quizQuestions.length < 5) {
     throw new Error(
       quizQuestions.length === 0
-        ? `Could not generate quiz questions for r/${subreddit}. Posts may be filtered out (NSFW, stickied, mod, locked) or lack enough comments with a clear top answer.`
-        : `Could not find 5 qualifying questions for r/${subreddit}. Only ${quizQuestions.length} passed filters (NSFW/stickied/mod/locked/clear-winner). Try another subreddit or time.`
+        ? `Could not generate quiz questions for r/${subreddit}. Posts may be filtered out (NSFW, stickied, mod, locked, crosspost) or lack enough comments with a clear top answer.`
+        : `Could not find 5 qualifying questions for r/${subreddit}. Only ${quizQuestions.length} passed filters (NSFW/stickied/mod/locked/crosspost/clear-winner). Try another subreddit or time.`
     );
   }
 

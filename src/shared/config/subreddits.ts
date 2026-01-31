@@ -85,3 +85,21 @@ export function getDailySubredditForDate(date: Date): ApprovedSubreddit {
   const index = dayOfYear % APPROVED_SUBREDDITS.length;
   return APPROVED_SUBREDDITS[index]!;
 }
+
+/**
+ * Subreddits in rotation order starting from today (for trying next on failure)
+ */
+export function getSubredditsInRotationOrder(): ApprovedSubreddit[] {
+  const dayOfYear =
+    Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
+        (1000 * 60 * 60 * 24)
+    ) % APPROVED_SUBREDDITS.length;
+  const startIndex = dayOfYear % APPROVED_SUBREDDITS.length;
+  const result: ApprovedSubreddit[] = [];
+  for (let i = 0; i < APPROVED_SUBREDDITS.length; i++) {
+    const index = (startIndex + i) % APPROVED_SUBREDDITS.length;
+    result.push(APPROVED_SUBREDDITS[index]!);
+  }
+  return result;
+}

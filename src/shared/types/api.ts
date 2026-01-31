@@ -24,6 +24,8 @@ export type QuizQuestion = {
 export type QuizResponse = {
   quiz: QuizQuestion[];
   isNsfw?: boolean;
+  /** Actual subreddit used (may differ from requested when daily rotation falls back) */
+  subreddit?: string;
 };
 
 export type FetchQuizRequest = {

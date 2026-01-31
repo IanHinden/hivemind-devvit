@@ -79,6 +79,33 @@ export async function clearCachedQuiz(subreddit: string, date?: string): Promise
   }
 }
 
+const SKIP_SUBREDDITS_KEY = 'skip_subreddits';
+
+/**
+ * Subreddits that failed to load (banned, private, etc.) so we try the next in rotation
+ */
+export async function isSubredditSkipped(subreddit: string): Promise<boolean> {
+  const raw = await redis.get(SKIP_SUBREDDITS_KEY);
+  if (!raw) return false;
+  try {
+    const list = JSON.parse(raw) as string[];
+    return Array.isArray(list) && list.includes(subreddit);
+  } catch {
+    return false;
+  }
+}
+
+export async function addSubredditToSkipList(subreddit: string): Promise<void> {
+  const raw = await redis.get(SKIP_SUBREDDITS_KEY);
+  const list: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+  if (!Array.isArray(list)) return;
+  const normalized = subreddit.trim();
+  if (!normalized || list.includes(normalized)) return;
+  list.push(normalized);
+  await redis.set(SKIP_SUBREDDITS_KEY, JSON.stringify(list));
+  console.log(`Added r/${normalized} to skip list (banned/unavailable)`);
+}
+
 /**
  * Clear all quiz caches (for all subreddits)
  * Note: Redis might not have a keys() method, so we'll clear specific subreddits

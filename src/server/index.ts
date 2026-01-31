@@ -3,8 +3,19 @@ import { QuizResponse, ErrorResponse, ErrorType } from '../shared/types/api';
 import { createServer, getServerPort, context, redis, reddit } from '@devvit/web/server';
 import { createPost } from './core/post';
 import { fetchQuizData } from './core/quiz';
-import { getCachedQuiz, cacheQuiz, clearCachedQuiz, clearAllQuizCaches } from './core/quizCache';
-import { getDailySubreddit, getDailySubredditForDate } from '../shared/config/subreddits';
+import {
+  getCachedQuiz,
+  cacheQuiz,
+  clearCachedQuiz,
+  clearAllQuizCaches,
+  isSubredditSkipped,
+  addSubredditToSkipList,
+} from './core/quizCache';
+import {
+  getDailySubreddit,
+  getDailySubredditForDate,
+  getSubredditsInRotationOrder,
+} from '../shared/config/subreddits';
 
 const app = express();
 
@@ -231,9 +242,11 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
       }
     }
 
-    // If no subreddit provided, use the daily subreddit
+    // If no subreddit provided, use the daily subreddit (we may try next on failure)
+    let usingDailySubreddit = false;
     if (!subreddit) {
       subreddit = getDailySubreddit();
+      usingDailySubreddit = true;
     }
 
     // Validate subreddit name
@@ -247,100 +260,138 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
       return;
     }
 
+    // When using daily rotation, try subreddits in order (skip banned/unavailable)
+    const candidates = usingDailySubreddit
+      ? (await Promise.all(
+          getSubredditsInRotationOrder().map(async (c) =>
+            (await isSubredditSkipped(c)) ? null : c
+          )
+        )).filter((c): c is string => c != null)
+      : [subreddit];
+
+    if (candidates.length === 0) {
+      res.status(503).json({
+        status: 'error',
+        message: 'No subreddits available in rotation. Please try again later.',
+        type: 'UNKNOWN_ERROR',
+        retryable: true,
+        suggestion: 'Please try again in a moment',
+      } as ErrorResponse);
+      return;
+    }
+
     try {
-      // Check Redis cache first (use provided date or today's date)
-      const cachedQuiz = await getCachedQuiz(subreddit, date);
-
-      if (cachedQuiz && cachedQuiz.length > 0) {
-        console.log(`Returning cached quiz for r/${subreddit}`);
-        res.json({
-          quiz: cachedQuiz,
-        });
-        return;
-      }
-
-      // Cache miss - fetch from Reddit API
-      console.log(`Cache miss for r/${subreddit}, fetching from Reddit API...`);
-
-      try {
-        const quizData = await fetchQuizData(subreddit);
-
-        if (quizData.length === 0) {
-          // Try to provide helpful error message
-          const errorResponse: ErrorResponse = {
-            status: 'error',
-            message: `Couldn't find enough quiz questions for r/${subreddit}. This subreddit may not exist, may be private, or may not have enough posts with comments.`,
-            type: 'INSUFFICIENT_DATA',
-            retryable: true,
-            suggestion: 'Try selecting a different subreddit',
-          };
-          res.status(404).json(errorResponse);
+      for (const candidate of candidates) {
+        // Check Redis cache first
+        const cachedQuiz = await getCachedQuiz(candidate, date);
+        if (cachedQuiz && cachedQuiz.length > 0) {
+          console.log(`Returning cached quiz for r/${candidate}`);
+          res.json({ quiz: cachedQuiz, ...(usingDailySubreddit && { subreddit: candidate }) });
           return;
         }
 
-        // Cache the quiz data (use provided date or today's date, expires in 30 days)
-        await cacheQuiz(subreddit, quizData, date);
-
-        res.json({
-          quiz: quizData,
-        });
-      } catch (fetchError) {
-        // Categorize the error
-        const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
-        let errorType: ErrorType = 'UNKNOWN_ERROR';
-        let retryable = false;
-        let suggestion = 'Please try again later';
-
-        // Categorize errors
-        if (
-          errorMessage.includes('not found') ||
-          errorMessage.includes('does not exist') ||
-          errorMessage.includes('404')
-        ) {
-          errorType = 'SUBREDDIT_NOT_FOUND';
-          suggestion = 'Please check the subreddit name and try a different one';
-        } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
-          errorType = 'RATE_LIMIT';
-          retryable = true;
-          suggestion = 'Reddit is rate limiting requests. Please wait a moment and try again';
-        } else if (
-          errorMessage.includes('network') ||
-          errorMessage.includes('fetch') ||
-          errorMessage.includes('timeout')
-        ) {
-          errorType = 'NETWORK_ERROR';
-          retryable = true;
-          suggestion = 'Network error occurred. Please check your connection and try again';
-        } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
-          errorType = 'API_ERROR';
-          suggestion = 'Unable to access Reddit data. The subreddit may be private or restricted';
+        // Cache miss - fetch from Reddit API
+        console.log(`Cache miss for r/${candidate}, fetching from Reddit API...`);
+        try {
+          const quizData = await fetchQuizData(candidate);
+          if (quizData.length === 0) {
+            if (usingDailySubreddit) {
+              await addSubredditToSkipList(candidate);
+              continue;
+            }
+            res.status(404).json({
+              status: 'error',
+              message: `Couldn't find enough quiz questions for r/${candidate}. This subreddit may not exist, may be private, or may not have enough posts with comments.`,
+              type: 'INSUFFICIENT_DATA',
+              retryable: true,
+              suggestion: 'Try selecting a different subreddit',
+            } as ErrorResponse);
+            return;
+          }
+          await cacheQuiz(candidate, quizData, date);
+          res.json({
+            quiz: quizData,
+            ...(usingDailySubreddit && { subreddit: candidate }),
+          });
+          return;
+        } catch (fetchError) {
+          const errorMessage =
+            fetchError instanceof Error ? fetchError.message : String(fetchError);
+          const isUnavailable =
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist') ||
+            errorMessage.includes('404') ||
+            errorMessage.includes('403') ||
+            errorMessage.includes('Forbidden') ||
+            errorMessage.includes('banned') ||
+            errorMessage.includes('private') ||
+            errorMessage.includes('restricted') ||
+            errorMessage.includes('Could not find 5 qualifying') ||
+            errorMessage.includes('Could not generate quiz questions');
+          if (usingDailySubreddit && isUnavailable) {
+            await addSubredditToSkipList(candidate);
+            continue;
+          }
+          // Not daily or not an "unavailable" error - return error to client
+          let errorType: ErrorType = 'UNKNOWN_ERROR';
+          let retryable = false;
+          let suggestion = 'Please try again later';
+          if (
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist') ||
+            errorMessage.includes('404')
+          ) {
+            errorType = 'SUBREDDIT_NOT_FOUND';
+            suggestion = 'Please check the subreddit name and try a different one';
+          } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+            errorType = 'RATE_LIMIT';
+            retryable = true;
+            suggestion = 'Reddit is rate limiting requests. Please wait a moment and try again';
+          } else if (
+            errorMessage.includes('network') ||
+            errorMessage.includes('fetch') ||
+            errorMessage.includes('timeout')
+          ) {
+            errorType = 'NETWORK_ERROR';
+            retryable = true;
+            suggestion = 'Network error occurred. Please check your connection and try again';
+          } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+            errorType = 'API_ERROR';
+            suggestion =
+              'Unable to access Reddit data. The subreddit may be private or restricted';
+          }
+          res
+            .status(
+              errorType === 'SUBREDDIT_NOT_FOUND' ? 404 : errorType === 'RATE_LIMIT' ? 429 : 500
+            )
+            .json({
+              status: 'error',
+              message: errorMessage,
+              type: errorType,
+              retryable,
+              suggestion,
+            } as ErrorResponse);
+          return;
         }
-
-        const errorResponse: ErrorResponse = {
-          status: 'error',
-          message: errorMessage,
-          type: errorType,
-          retryable,
-          suggestion,
-        };
-
-        res
-          .status(
-            errorType === 'SUBREDDIT_NOT_FOUND' ? 404 : errorType === 'RATE_LIMIT' ? 429 : 500
-          )
-          .json(errorResponse);
-        return;
       }
+
+      // All candidates failed (daily rotation)
+      res.status(503).json({
+        status: 'error',
+        message: "Couldn't load a quiz from any subreddit in the rotation. Please try again later.",
+        type: 'UNKNOWN_ERROR',
+        retryable: true,
+        suggestion: 'Please try again in a moment',
+      } as ErrorResponse);
     } catch (error) {
-      console.error(`Unexpected error fetching quiz for r/${subreddit}:`, error);
-      const errorResponse: ErrorResponse = {
+      console.error(`Unexpected error fetching quiz:`, error);
+      res.status(500).json({
         status: 'error',
         message: 'Failed to load quiz. Please try again.',
         type: 'UNKNOWN_ERROR',
         retryable: true,
         suggestion: 'Please try again in a moment',
-      };
-      res.status(500).json(errorResponse);
+      } as ErrorResponse);
     }
   }
 );
