@@ -40,6 +40,8 @@ async function fetchSubredditPostsWithDevvitAPI(
         distinguished: src.distinguished ?? null,
         locked: src.locked ?? false,
         crosspost_parent: src.crosspost_parent ?? src.crosspostParent ?? null,
+        crosspost_parent_list: src.crosspost_parent_list ?? src.crosspostParentList ?? undefined,
+        is_crosspost: src.is_crosspost ?? src.isCrosspost ?? false,
         media: src.media,
         preview: src.preview,
         gallery_data: src.galleryData ?? src.gallery_data,
@@ -142,6 +144,10 @@ type RedditPost = {
     locked?: boolean;
     /** Set when post is a crosspost from another subreddit */
     crosspost_parent?: string | null;
+    /** Reddit API: array of parent post data when this is a crosspost */
+    crosspost_parent_list?: unknown[];
+    /** Reddit API: true when post is a crosspost */
+    is_crosspost?: boolean;
     media?: {
       reddit_video?: {
         fallback_url?: string;
@@ -201,6 +207,13 @@ export async function fetchSubredditPosts(
     if (post.distinguished === 'moderator' || post.distinguished === 'admin') return false;
     if (post.locked) return false;
     if (post.crosspost_parent) return false;
+    if (post.is_crosspost) return false;
+    if (
+      post.crosspost_parent_list &&
+      Array.isArray(post.crosspost_parent_list) &&
+      post.crosspost_parent_list.length > 0
+    )
+      return false;
     return true;
   });
 }
