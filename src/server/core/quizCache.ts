@@ -106,6 +106,71 @@ export async function addSubredditToSkipList(subreddit: string): Promise<void> {
   console.log(`Added r/${normalized} to skip list (banned/unavailable)`);
 }
 
+const REPLACED_POSTS_KEY = 'replaced_posts';
+const REPORT_THRESHOLD = 3;
+
+function reportKey(postId: string): string {
+  return `report:${postId}`;
+}
+
+/**
+ * Post IDs that have been replaced (enough user reports as inappropriate)
+ */
+export async function getReplacedPostIds(): Promise<string[]> {
+  const raw = await redis.get(REPLACED_POSTS_KEY);
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw) as string[];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addPostToReplaced(postId: string): Promise<void> {
+  const normalized = postId.trim();
+  if (!normalized) return;
+  const ids = await getReplacedPostIds();
+  if (ids.includes(normalized)) return;
+  ids.push(normalized);
+  await redis.set(REPLACED_POSTS_KEY, JSON.stringify(ids));
+  console.log(`Added post ${normalized} to replaced list (inappropriate reports)`);
+}
+
+/**
+ * Add a report for a post. If reporterId is provided, each user is counted once per post;
+ * otherwise each request counts (anonymous). Storage is always a list of reporter IDs.
+ * When report count reaches threshold, adds post to replaced list.
+ * Returns the current report count for this post.
+ */
+export async function incrementReportCount(
+  postId: string,
+  reporterId?: string | null
+): Promise<number> {
+  const normalized = postId.trim();
+  if (!normalized) return 0;
+  const key = reportKey(normalized);
+  const raw = await redis.get(key);
+  let list: string[] = raw ? (JSON.parse(raw) as string[]) : [];
+  if (!Array.isArray(list)) list = [];
+
+  const id =
+    reporterId != null && String(reporterId).trim() !== ''
+      ? String(reporterId).trim()
+      : `__anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  if (id.startsWith('__anon_')) {
+    list.push(id);
+  } else {
+    if (list.includes(id)) return list.length;
+    list.push(id);
+  }
+  await redis.set(key, JSON.stringify(list));
+  if (list.length >= REPORT_THRESHOLD) {
+    await addPostToReplaced(normalized);
+  }
+  return list.length;
+}
+
 /**
  * Clear all quiz caches (for all subreddits)
  * Note: Redis might not have a keys() method, so we'll clear specific subreddits

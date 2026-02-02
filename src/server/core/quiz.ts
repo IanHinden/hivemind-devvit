@@ -329,6 +329,37 @@ export function transformToQuizFormat(
 }
 
 /**
+ * Fetch one qualifying quiz question for a subreddit, excluding given post IDs.
+ * Used to replace reported (inappropriate) questions.
+ */
+export async function getReplacementQuestion(
+  subreddit: string,
+  excludePostIds: string[]
+): Promise<QuizQuestion | null> {
+  const excludeSet = new Set(excludePostIds.map((id) => id.trim()).filter(Boolean));
+  const posts = (await fetchSubredditPosts(subreddit)).filter((p) => !excludeSet.has(p.id));
+  if (posts.length === 0) return null;
+
+  const commentPromises = posts.map((post) => {
+    const postId = (post as { originalId?: string; id: string }).originalId || post.id;
+    const fullPostId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
+    return fetchPostComments(subreddit, fullPostId, 5).catch(() => []);
+  });
+  const commentsArrays = await Promise.all(commentPromises);
+  const commentsMap = new Map<string, RedditComment['data'][]>();
+  for (let i = 0; i < posts.length; i++) {
+    const post = posts[i];
+    const comments = commentsArrays[i];
+    if (post && comments && comments.length > 0) commentsMap.set(post.id, comments);
+  }
+  const sortedPosts = [...posts].sort(
+    (a, b) => getContentLength(a, commentsMap) - getContentLength(b, commentsMap)
+  );
+  const questions = transformToQuizFormat(sortedPosts, commentsMap);
+  return questions[0] ?? null;
+}
+
+/**
  * Fetch quiz data for a subreddit.
  * Fetches more candidate posts so we still get 5 questions after filtering
  * (NSFW, stickied, mod, locked, crosspost, and "clear winner" comment requirement).

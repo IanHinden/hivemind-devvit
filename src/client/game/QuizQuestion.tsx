@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { navigateTo } from '@devvit/web/client';
+import { context, navigateTo } from '@devvit/web/client';
 import type { QuizQuestion } from '../../shared/types/api';
 
 type QuizQuestionProps = {
@@ -19,6 +19,8 @@ export const QuizQuestionComponent = ({
   const [showAnswer, setShowAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const topComment = question.comments[0];
   const topCommentId = topComment?.id;
@@ -56,6 +58,26 @@ export const QuizQuestionComponent = ({
     const correct = commentId === topCommentId;
     setIsCorrect(correct);
     onAnswer(correct);
+  };
+
+  const handleReportInappropriate = async () => {
+    if (reportSubmitted || reportLoading) return;
+    setReportLoading(true);
+    try {
+      const response = await fetch('/api/report-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: question.postId,
+          userId: (context as { userId?: string })?.userId,
+        }),
+      });
+      if (response.ok) setReportSubmitted(true);
+    } catch (error) {
+      console.error('Failed to report post:', error);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   const handleViewThread = async (e: React.MouseEvent) => {
@@ -202,6 +224,24 @@ export const QuizQuestionComponent = ({
                   <span>Copy thread URL</span>
                 </>
               )}
+            </button>
+          </div>
+          {/* Report as inappropriate */}
+          <div className="mt-2 text-center">
+            <button
+              type="button"
+              onClick={handleReportInappropriate}
+              disabled={reportSubmitted || reportLoading}
+              title={`Report this post if the content is offensive, disturbing, or not suitable for the quiz.
+
+After enough reports, it will be replaced with another question.`}
+              className="text-xs text-gray-500 hover:text-gray-700 hover:underline cursor-pointer bg-transparent border-none p-1 disabled:opacity-50 disabled:cursor-default disabled:no-underline"
+            >
+              {reportSubmitted
+                ? 'Report submitted'
+                : reportLoading
+                  ? 'Submitting...'
+                  : 'Report as inappropriate'}
             </button>
           </div>
         </div>

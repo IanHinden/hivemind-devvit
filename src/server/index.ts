@@ -2,7 +2,7 @@ import express from 'express';
 import { QuizResponse, ErrorResponse, ErrorType } from '../shared/types/api';
 import { createServer, getServerPort, context, redis, reddit } from '@devvit/web/server';
 import { createPost } from './core/post';
-import { fetchQuizData } from './core/quiz';
+import { fetchQuizData, getReplacementQuestion } from './core/quiz';
 import {
   getCachedQuiz,
   cacheQuiz,
@@ -10,6 +10,8 @@ import {
   clearAllQuizCaches,
   isSubredditSkipped,
   addSubredditToSkipList,
+  getReplacedPostIds,
+  incrementReportCount,
 } from './core/quizCache';
 import {
   getDailySubreddit,
@@ -18,6 +20,17 @@ import {
 } from '../shared/config/subreddits';
 
 const app = express();
+
+/** Require ?key=ADMIN_SECRET for admin-only endpoints. Returns false and sends 401 if missing/invalid. */
+function requireAdminSecret(req: express.Request, res: express.Response): boolean {
+  const secret = process.env.ADMIN_SECRET;
+  const key = req.query.key as string | undefined;
+  if (!secret || key !== secret) {
+    res.status(401).json({ status: 'error', message: 'Unauthorized' });
+    return false;
+  }
+  return true;
+}
 
 // Middleware for JSON body parsing
 app.use(express.json());
@@ -134,8 +147,9 @@ router.post('/api/clear-cache', async (req, res): Promise<void> => {
   }
 });
 
-// GET /api/next-subreddit?days=N - Returns tomorrow's subreddit and optional upcoming days (for planning rotation)
+// GET /api/next-subreddit?days=N&key=ADMIN_SECRET - Returns tomorrow's subreddit and optional upcoming days (admin only)
 router.get('/api/next-subreddit', async (req, res): Promise<void> => {
+  if (!requireAdminSecret(req, res)) return;
   try {
     const daysParam = req.query.days as string | undefined;
     const days = daysParam ? Math.min(Math.max(1, parseInt(daysParam, 10)), 31) : 7;
@@ -286,7 +300,21 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
         const cachedQuiz = await getCachedQuiz(candidate, date);
         if (cachedQuiz && cachedQuiz.length > 0) {
           console.log(`Returning cached quiz for r/${candidate}`);
-          res.json({ quiz: cachedQuiz, ...(usingDailySubreddit && { subreddit: candidate }) });
+          const replacedIds = await getReplacedPostIds();
+          const quizOut = [...cachedQuiz];
+          for (let i = 0; i < quizOut.length; i++) {
+            if (replacedIds.includes(quizOut[i]!.postId)) {
+              const replacement = await getReplacementQuestion(candidate, [
+                ...quizOut.map((q) => q.postId),
+                ...replacedIds,
+              ]);
+              if (replacement) quizOut[i] = replacement;
+            }
+          }
+          res.json({
+            quiz: quizOut,
+            ...(usingDailySubreddit && { subreddit: candidate }),
+          });
           return;
         }
 
@@ -309,8 +337,19 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
             return;
           }
           await cacheQuiz(candidate, quizData, date);
+          const replacedIds = await getReplacedPostIds();
+          const quizOut = [...quizData];
+          for (let i = 0; i < quizOut.length; i++) {
+            if (replacedIds.includes(quizOut[i]!.postId)) {
+              const replacement = await getReplacementQuestion(candidate, [
+                ...quizOut.map((q) => q.postId),
+                ...replacedIds,
+              ]);
+              if (replacement) quizOut[i] = replacement;
+            }
+          }
           res.json({
-            quiz: quizData,
+            quiz: quizOut,
             ...(usingDailySubreddit && { subreddit: candidate }),
           });
           return;
@@ -395,6 +434,47 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
     }
   }
 );
+
+// GET /api/reported-posts?key=ADMIN_SECRET - List post IDs that have been replaced due to inappropriate reports (admin only)
+router.get('/api/reported-posts', async (req, res): Promise<void> => {
+  if (!requireAdminSecret(req, res)) return;
+  try {
+    const replacedPostIds = await getReplacedPostIds();
+    res.json({
+      replacedPostIds,
+      count: replacedPostIds.length,
+    });
+  } catch (error) {
+    console.error('Error fetching reported posts:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to load reported posts.',
+    });
+  }
+});
+
+// POST /api/report-post - Report a quiz question (post) as inappropriate
+router.post('/api/report-post', async (req, res): Promise<void> => {
+  try {
+    const { postId, userId } = req.body as { postId?: string; userId?: string };
+    if (!postId || typeof postId !== 'string' || !postId.trim()) {
+      res.status(400).json({ status: 'error', message: 'Post ID is required' });
+      return;
+    }
+    const reporterId =
+      userId != null && typeof userId === 'string'
+        ? userId.trim()
+        : (context as { userId?: string }).userId;
+    const count = await incrementReportCount(postId.trim(), reporterId || undefined);
+    res.json({ reported: true, count });
+  } catch (error) {
+    console.error('Error reporting post:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to submit report. Please try again.',
+    });
+  }
+});
 
 // POST /api/share-score - Share user's score as a comment on the post
 router.post('/api/share-score', async (req, res): Promise<void> => {

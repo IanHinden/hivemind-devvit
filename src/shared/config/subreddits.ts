@@ -43,6 +43,8 @@ export const APPROVED_SUBREDDITS = [
   'pareidolia',
   'lego',
   'Wellthatsucks',
+  'Fixedbytheduet',
+  'Characterarcs',
   'interestingasfuck',
   'UpliftingNews',
   'memes',
