@@ -45,7 +45,7 @@ export const App = () => {
         setDailySubreddit('AskReddit');
       }
     };
-    fetchDailySubreddit();
+    void fetchDailySubreddit();
   }, []);
 
   const loadQuiz = async (subreddit: string, retryAttempt = 0): Promise<void> => {
@@ -116,13 +116,13 @@ export const App = () => {
   const handleRetry = () => {
     setRetryCount(0);
     if (dailySubreddit) {
-      loadQuiz(dailySubreddit, 0);
+      void loadQuiz(dailySubreddit, 0);
     }
   };
 
   const handleStartQuiz = () => {
     if (dailySubreddit) {
-      loadQuiz(dailySubreddit);
+      void loadQuiz(dailySubreddit);
     }
   };
 

@@ -24,7 +24,7 @@
   "permissions": {
     "http": {
       "enable": true,
-      "domains": []
+      "domains": ["reddit.com", "www.reddit.com", "v.redd.it"]
     },
     "reddit": {
       "enable": true,

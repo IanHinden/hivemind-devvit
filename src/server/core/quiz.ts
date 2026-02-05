@@ -19,6 +19,7 @@ async function fetchSubredditPostsWithDevvitAPI(
     const posts = await listing.all();
 
     // Transform Devvit post objects to our RedditPost format
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Devvit API returns untyped Post objects
     return posts.map((post: any) => {
       const src = post.data ?? post;
       let postId = (src.id || src.postId || '').toString();
@@ -29,7 +30,7 @@ async function fetchSubredditPostsWithDevvitAPI(
         id: postId,
         title: src.title || '',
         selftext: src.selftext ?? src.body ?? '',
-        url: src.url || '',
+        url: src.url ?? src.linkUrl ?? src.destination ?? '',
         author: src.author ?? src.authorName ?? null,
         permalink: src.permalink || `/r/${subreddit}/comments/${postId}`,
         score: src.score ?? src.ups ?? 0,
@@ -42,7 +43,8 @@ async function fetchSubredditPostsWithDevvitAPI(
         crosspost_parent: src.crosspost_parent ?? src.crosspostParent ?? null,
         crosspost_parent_list: src.crosspost_parent_list ?? src.crosspostParentList ?? undefined,
         is_crosspost: src.is_crosspost ?? src.isCrosspost ?? false,
-        media: src.media,
+        media: src.media ?? src.secure_media ?? src.secureMedia,
+        secure_media: src.secure_media ?? src.secureMedia,
         preview: src.preview,
         gallery_data: src.galleryData ?? src.gallery_data,
       } as RedditPost['data'];
@@ -76,6 +78,7 @@ async function fetchPostCommentsWithDevvitAPI(
     // Transform Devvit comment objects to our RedditComment format
     const transformedComments: RedditComment['data'][] = [];
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Devvit API returns untyped Comment objects
     function extractComments(commentsArray: any[]): void {
       for (const comment of commentsArray) {
         // Skip deleted/removed comments
@@ -153,6 +156,11 @@ type RedditPost = {
         fallback_url?: string;
       };
     };
+    secure_media?: {
+      reddit_video?: {
+        fallback_url?: string;
+      };
+    };
     preview?: {
       images?: Array<{
         source?: {
@@ -187,6 +195,33 @@ type RedditCommentListing = {
 
 /** Minimum number of candidate posts to fetch so we still get 5 after quality filters */
 const CANDIDATE_POST_LIMIT = 30;
+
+/**
+ * Fetch video fallback_url from Reddit's public JSON API when Devvit API omits media.
+ * Used as fallback for video posts that lack media.reddit_video in the listing response.
+ */
+async function fetchVideoUrlFromRedditJson(postId: string): Promise<string | null> {
+  try {
+    const url = `https://www.reddit.com/comments/${postId}.json?limit=1`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'HowHivemindRU/1.0 (Devvit app)' },
+    });
+    if (!res.ok) return null;
+    type RedditJsonPost = {
+      media?: { reddit_video?: { fallback_url?: string } };
+      secure_media?: { reddit_video?: { fallback_url?: string } };
+    };
+    type RedditJsonListing = { data?: { children?: Array<{ data?: RedditJsonPost }> } };
+    const json = (await res.json()) as RedditJsonListing[];
+    const postData = json?.[0]?.data?.children?.[0]?.data;
+    const fallback =
+      postData?.media?.reddit_video?.fallback_url ??
+      postData?.secure_media?.reddit_video?.fallback_url;
+    return fallback ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Fetch hot posts from a subreddit using Devvit's built-in Reddit API.
@@ -259,13 +294,77 @@ function extractImageUrls(post: RedditPost['data']): string[] {
 }
 
 /**
- * Extract video URL from a Reddit post
+ * Enrich posts with video URLs from Reddit JSON API when Devvit listing omits media.
  */
-function extractVideoUrl(post: RedditPost['data']): string | null {
-  if (post.is_video && post.media?.reddit_video?.fallback_url) {
-    return post.media.reddit_video.fallback_url;
+async function enrichPostsWithVideoUrls(
+  posts: RedditPost['data'][]
+): Promise<RedditPost['data'][]> {
+  const needsEnrichment = posts.filter((p) => {
+    const isVideo = p.is_video || /^https?:\/\/v\.redd\.it\//.test(p.url ?? '');
+    const hasFallback =
+      p.media?.reddit_video?.fallback_url ?? p.secure_media?.reddit_video?.fallback_url;
+    return isVideo && !hasFallback;
+  });
+  if (needsEnrichment.length === 0) return posts;
+
+  const enriched = await Promise.all(
+    posts.map(async (post) => {
+      const isVideo = post.is_video || /^https?:\/\/v\.redd\.it\//.test(post.url ?? '');
+      const hasFallback =
+        post.media?.reddit_video?.fallback_url ?? post.secure_media?.reddit_video?.fallback_url;
+      if (!isVideo || hasFallback) return post;
+
+      const fallback = await fetchVideoUrlFromRedditJson(post.id);
+      if (!fallback) return post;
+
+      return {
+        ...post,
+        media: {
+          ...post.media,
+          reddit_video: { ...post.media?.reddit_video, fallback_url: fallback },
+        },
+      } as RedditPost['data'];
+    })
+  );
+  return enriched;
+}
+
+/**
+ * Extract video URL from a Reddit post.
+ * Returns { direct, embed } - direct for native video (<video>), embed for YouTube etc (<iframe>).
+ */
+function extractVideoUrls(post: RedditPost['data']): {
+  direct: string | null;
+  embed: string | null;
+} {
+  const result = { direct: null as string | null, embed: null as string | null };
+
+  // Native Reddit video (v.redd.it)
+  const isVReddit = post.is_video || /^https?:\/\/v\.redd\.it\//.test(post.url ?? '');
+  if (isVReddit) {
+    const fallback =
+      post.media?.reddit_video?.fallback_url ?? post.secure_media?.reddit_video?.fallback_url;
+    if (fallback) {
+      result.direct = fallback;
+      return result;
+    }
+    const vRedditMatch = post.url?.match(/^https?:\/\/v\.redd\.it\/([a-zA-Z0-9]+)\/?/);
+    if (vRedditMatch) {
+      result.direct = `https://v.redd.it/${vRedditMatch[1]}/DASH_720`;
+      return result;
+    }
   }
-  return null;
+
+  // YouTube link posts (youtube.com/watch?v=, youtu.be/, youtube.com/shorts/)
+  const ytMatch =
+    post.url?.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+    ) ?? null;
+  if (ytMatch) {
+    result.embed = `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+
+  return result;
 }
 
 /**
@@ -288,9 +387,7 @@ function getContentLength(
   const comments = commentsMap.get(post.id) ?? [];
   if (comments.length < 3 || !hasClearWinner(comments)) return Number.POSITIVE_INFINITY;
   const opLength = (post.title ?? '').length + (post.selftext ?? '').length;
-  const commentLength = comments
-    .slice(0, 3)
-    .reduce((sum, c) => sum + (c.body ?? '').length, 0);
+  const commentLength = comments.slice(0, 3).reduce((sum, c) => sum + (c.body ?? '').length, 0);
   return opLength + commentLength;
 }
 
@@ -311,7 +408,7 @@ export function transformToQuizFormat(
     }
 
     const imageUrls = extractImageUrls(post);
-    const videoUrl = extractVideoUrl(post);
+    const { direct: videoUrl, embed: videoEmbedUrl } = extractVideoUrls(post);
 
     const quizQuestion: QuizQuestion = {
       postId: post.id,
@@ -320,8 +417,9 @@ export function transformToQuizFormat(
       ...(post.url && { url: post.url }),
       ...(imageUrls[0] && { imageUrl: imageUrls[0] }),
       ...(imageUrls.length > 0 && { imageUrls }),
-      isVideo: post.is_video || false,
+      isVideo: post.is_video || !!videoUrl || !!videoEmbedUrl,
       ...(videoUrl && { videoUrl }),
+      ...(videoEmbedUrl && { videoEmbedUrl }),
       author: post.author,
       permalink: post.permalink.startsWith('http')
         ? post.permalink
@@ -368,7 +466,8 @@ export async function getReplacementQuestion(
   const sortedPosts = [...posts].sort(
     (a, b) => getContentLength(a, commentsMap) - getContentLength(b, commentsMap)
   );
-  const questions = transformToQuizFormat(sortedPosts, commentsMap);
+  const enrichedPosts = await enrichPostsWithVideoUrls(sortedPosts);
+  const questions = transformToQuizFormat(enrichedPosts, commentsMap);
   return questions[0] ?? null;
 }
 
@@ -392,7 +491,8 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
   // We only need 3 comments per post, so fetch 5 to have some buffer
   const commentPromises = posts.map((post) => {
     // Get the original post ID (might be stored in originalId or we need to reconstruct it)
-    const postId = (post as any).originalId || post.id;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- post may have originalId from cache
+    const postId = (post as any).originalId ?? post.id;
     // Ensure it's in t3_ format for getComments
     const fullPostId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
 
@@ -419,7 +519,8 @@ export async function fetchQuizData(subreddit: string): Promise<QuizQuestion[]> 
   const sortedPosts = [...posts].sort(
     (a, b) => getContentLength(a, commentsMap) - getContentLength(b, commentsMap)
   );
-  const quizQuestions = transformToQuizFormat(sortedPosts, commentsMap);
+  const enrichedPosts = await enrichPostsWithVideoUrls(sortedPosts);
+  const quizQuestions = transformToQuizFormat(enrichedPosts, commentsMap);
 
   if (quizQuestions.length < 5) {
     throw new Error(

@@ -17,6 +17,7 @@ import {
   getDailySubreddit,
   getDailySubredditForDate,
   getSubredditsInRotationOrder,
+  type ApprovedSubreddit,
 } from '../shared/config/subreddits';
 
 const app = express();
@@ -78,7 +79,7 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
 // This endpoint is called by Devvit's scheduler to create a new post each day
 router.post('/internal/scheduled/daily-post', async (_req, res): Promise<void> => {
   try {
-    const dailySubreddit = getDailySubreddit();
+    const dailySubreddit = getDailySubreddit(process.env.TEST_SUBREDDIT);
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Check if we already created a post today (using Redis cache)
@@ -159,12 +160,12 @@ router.get('/api/next-subreddit', async (req, res): Promise<void> => {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
       upcoming.push({
-        date: d.toISOString().split('T')[0],
+        date: d.toISOString().split('T')[0] ?? '',
         subreddit: getDailySubredditForDate(d),
       });
     }
     res.json({
-      today: getDailySubreddit(),
+      today: getDailySubreddit(process.env.TEST_SUBREDDIT),
       todayDate: today.toISOString().split('T')[0],
       nextSubreddit: getDailySubredditForDate(new Date(today.getTime() + 86400000)),
       nextDate: new Date(today.getTime() + 86400000).toISOString().split('T')[0],
@@ -206,7 +207,7 @@ router.get('/api/daily-subreddit', async (req, res): Promise<void> => {
     }
 
     // Default: return today's subreddit
-    const dailySubreddit = getDailySubreddit();
+    const dailySubreddit = getDailySubreddit(process.env.TEST_SUBREDDIT);
     res.json({
       subreddit: dailySubreddit,
       date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
@@ -259,7 +260,7 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
     // If no subreddit provided, use the daily subreddit (we may try next on failure)
     let usingDailySubreddit = false;
     if (!subreddit) {
-      subreddit = getDailySubreddit();
+      subreddit = getDailySubreddit(process.env.TEST_SUBREDDIT);
       usingDailySubreddit = true;
     }
 
@@ -276,11 +277,13 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
 
     // When using daily rotation, try subreddits in order (skip banned/unavailable)
     const candidates = usingDailySubreddit
-      ? (await Promise.all(
-          getSubredditsInRotationOrder().map(async (c) =>
-            (await isSubredditSkipped(c)) ? null : c
+      ? (
+          await Promise.all(
+            getSubredditsInRotationOrder().map(async (c) =>
+              (await isSubredditSkipped(c)) ? null : c
+            )
           )
-        )).filter((c): c is string => c != null)
+        ).filter((c): c is ApprovedSubreddit => c != null)
       : [subreddit];
 
     if (candidates.length === 0) {
@@ -299,7 +302,6 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
         // Check Redis cache first
         const cachedQuiz = await getCachedQuiz(candidate, date);
         if (cachedQuiz && cachedQuiz.length > 0) {
-          console.log(`Returning cached quiz for r/${candidate}`);
           const replacedIds = await getReplacedPostIds();
           const quizOut = [...cachedQuiz];
           for (let i = 0; i < quizOut.length; i++) {
@@ -319,7 +321,6 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
         }
 
         // Cache miss - fetch from Reddit API
-        console.log(`Cache miss for r/${candidate}, fetching from Reddit API...`);
         try {
           const quizData = await fetchQuizData(candidate);
           if (quizData.length === 0) {
@@ -396,8 +397,7 @@ router.get<unknown, QuizResponse | ErrorResponse, unknown>(
             suggestion = 'Network error occurred. Please check your connection and try again';
           } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
             errorType = 'API_ERROR';
-            suggestion =
-              'Unable to access Reddit data. The subreddit may be private or restricted';
+            suggestion = 'Unable to access Reddit data. The subreddit may be private or restricted';
           }
           res
             .status(
@@ -515,7 +515,7 @@ router.post('/api/share-score', async (req, res): Promise<void> => {
     const percentage = Math.round((score / totalQuestions) * 100);
     const scoreText = `I scored ${score}/${totalQuestions} (${percentage}%) on today's How Hivemind r/ You? challenge for r/${subreddit}!`;
     const commentText = `${scoreText}\n\n**What was your strategy?**\n\n${strategy.trim()}`;
-    const parentId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
+    const parentId = (postId.startsWith('t3_') ? postId : `t3_${postId}`) as `t3_${string}`;
 
     await reddit.submitComment({ id: parentId, text: commentText, runAs: 'USER' });
     res.json({ status: 'success', message: 'Score shared successfully' });
@@ -530,7 +530,7 @@ router.post('/api/share-score', async (req, res): Promise<void> => {
 });
 
 // POST /api/subscribe - Subscribe user to the current subreddit
-router.post('/api/subscribe', async (req, res): Promise<void> => {
+router.post('/api/subscribe', async (_req, res): Promise<void> => {
   try {
     // According to Devvit docs, subscribeToCurrentSubreddit() subscribes as the user by default
     // https://developers.reddit.com/docs/capabilities/server/userActions

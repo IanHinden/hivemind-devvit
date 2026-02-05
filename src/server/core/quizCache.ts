@@ -53,10 +53,6 @@ export async function cacheQuiz(
 
   try {
     await redis.set(cacheKey, JSON.stringify(quizData), { expiration });
-    const ttl = Math.floor((expiration.getTime() - Date.now()) / 1000);
-    console.log(
-      `Cached quiz for r/${subreddit} (date: ${date || 'today'}) with TTL ${ttl} seconds (30 days)`
-    );
   } catch (error) {
     console.error(`Failed to cache quiz data for ${subreddit}:`, error);
     // Don't throw - caching failure shouldn't break the request

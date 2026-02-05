@@ -39,6 +39,7 @@ export const APPROVED_SUBREDDITS = [
   'boardgames',
   'Showerthoughts',
   'HappyCrowds',
+  'videos',
   'funny',
   'pareidolia',
   'lego',
@@ -63,8 +64,14 @@ export type ApprovedSubreddit = (typeof APPROVED_SUBREDDITS)[number];
  * Get the daily subreddit based on the day of the year
  * Uses a deterministic rotation that cycles through approved subreddits
  * The same day will always return the same subreddit
+ *
+ * Pass override to force a specific subreddit (e.g. for testing).
  */
-export function getDailySubreddit(): ApprovedSubreddit {
+export function getDailySubreddit(override?: string): ApprovedSubreddit {
+  if (override && APPROVED_SUBREDDITS.includes(override as ApprovedSubreddit)) {
+    return override as ApprovedSubreddit;
+  }
+
   // Get day of year (1-365/366)
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
@@ -94,8 +101,7 @@ export function getDailySubredditForDate(date: Date): ApprovedSubreddit {
 export function getSubredditsInRotationOrder(): ApprovedSubreddit[] {
   const dayOfYear =
     Math.floor(
-      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
-        (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
     ) % APPROVED_SUBREDDITS.length;
   const startIndex = dayOfYear % APPROVED_SUBREDDITS.length;
   const result: ApprovedSubreddit[] = [];

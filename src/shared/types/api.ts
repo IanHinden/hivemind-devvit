@@ -16,6 +16,8 @@ export type QuizQuestion = {
   imageUrls?: string[];
   isVideo?: boolean;
   videoUrl?: string;
+  /** Embed URL for YouTube/Vimeo etc. (use iframe, not video element) */
+  videoEmbedUrl?: string;
   author: string | null;
   permalink: string;
   comments: QuizComment[];

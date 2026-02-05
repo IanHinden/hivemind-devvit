@@ -3,7 +3,7 @@ import { getDailySubreddit, type ApprovedSubreddit } from '../../shared/config/s
 
 export const createPost = async (subreddit?: ApprovedSubreddit) => {
   // Use provided subreddit or get today's subreddit
-  const dailySubreddit = subreddit || getDailySubreddit();
+  const dailySubreddit = subreddit || getDailySubreddit(process.env.TEST_SUBREDDIT);
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   const post = await reddit.submitCustomPost({

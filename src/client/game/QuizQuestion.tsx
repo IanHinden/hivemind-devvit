@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { context, navigateTo } from '@devvit/web/client';
 import type { QuizQuestion } from '../../shared/types/api';
 
@@ -22,6 +22,22 @@ export const QuizQuestionComponent = ({
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
 
+  // Shuffle comments once when component mounts (useMemo - must be before early return)
+  const shuffledComments = useMemo(() => {
+    if (!question.comments || question.comments.length === 0) {
+      return [];
+    }
+    const shuffled = [...question.comments];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffled[i]!;
+      shuffled[i] = shuffled[j]!;
+      shuffled[j] = temp;
+    }
+    return shuffled;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally use postId for stable shuffle per question
+  }, [question.postId]);
+
   const topComment = question.comments[0];
   const topCommentId = topComment?.id;
 
@@ -32,22 +48,6 @@ export const QuizQuestionComponent = ({
       </div>
     );
   }
-
-  // Shuffle comments once when component mounts (useMemo with stable dependencies)
-  const shuffledComments = useMemo(() => {
-    if (!question.comments || question.comments.length === 0) {
-      return [];
-    }
-    // Create a copy and shuffle using Fisher-Yates algorithm
-    const shuffled = [...question.comments];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const temp = shuffled[i]!;
-      shuffled[i] = shuffled[j]!;
-      shuffled[j] = temp;
-    }
-    return shuffled;
-  }, [question.postId]); // Only reshuffle if postId changes
 
   const handleAnswerSelect = (commentId: string) => {
     if (showAnswer) return;
@@ -119,6 +119,35 @@ export const QuizQuestionComponent = ({
 
         {question.imageUrl && (
           <img src={question.imageUrl} alt="Post" className="max-w-full h-auto rounded-lg mb-4" />
+        )}
+
+        {question.videoUrl && (
+          <video
+            src={question.videoUrl}
+            controls
+            playsInline
+            className="max-w-full max-h-64 rounded-lg mb-4 bg-black"
+          >
+            Your browser does not support the video tag.
+          </video>
+        )}
+
+        {question.videoEmbedUrl && (
+          <div className="mb-4">
+            <a
+              href={question.url ?? question.videoEmbedUrl.replace('/embed/', '/watch?v=')}
+              onClick={(e) => {
+                e.preventDefault();
+                navigateTo(question.url ?? question.videoEmbedUrl!.replace('/embed/', '/watch?v='));
+              }}
+              className="flex items-center justify-center gap-2 w-full py-4 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+            >
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+              </svg>
+              Watch video on YouTube
+            </a>
+          </div>
         )}
 
         <p className="text-sm text-gray-500 mb-6">Can you guess the top comment?</p>
