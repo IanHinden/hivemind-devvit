@@ -350,7 +350,8 @@ function extractVideoUrls(post: RedditPost['data']): {
     }
     const vRedditMatch = post.url?.match(/^https?:\/\/v\.redd\.it\/([a-zA-Z0-9]+)\/?/);
     if (vRedditMatch) {
-      result.direct = `https://v.redd.it/${vRedditMatch[1]}/DASH_720`;
+      // Use .mp4 extension - fallback_url format is typically DASH_720.mp4
+      result.direct = `https://v.redd.it/${vRedditMatch[1]}/DASH_720.mp4`;
       return result;
     }
   }

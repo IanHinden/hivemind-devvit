@@ -19,6 +19,7 @@ export const QuizQuestionComponent = ({
   const [showAnswer, setShowAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [videoUrlCopied, setVideoUrlCopied] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
 
@@ -122,31 +123,78 @@ export const QuizQuestionComponent = ({
         )}
 
         {question.videoUrl && (
-          <video
-            src={question.videoUrl}
-            controls
-            playsInline
-            className="max-w-full max-h-64 rounded-lg mb-4 bg-black"
-          >
-            Your browser does not support the video tag.
-          </video>
+          <div className="mb-4 relative group">
+            <video
+              controls
+              playsInline
+              preload="auto"
+              crossOrigin="anonymous"
+              className="max-w-full max-h-64 rounded-lg bg-black w-full"
+              onCanPlay={(e) => {
+                const fallback = e.currentTarget.parentElement?.querySelector('[data-video-fallback]');
+                if (fallback) (fallback as HTMLElement).classList.add('hidden');
+              }}
+              onError={(e) => {
+                const fallback = e.currentTarget.parentElement?.querySelector('[data-video-fallback]');
+                if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+              }}
+            >
+              <source
+                src={
+                  question.videoUrl.endsWith('/DASH_720')
+                    ? `${question.videoUrl}.mp4`
+                    : question.videoUrl
+                }
+                type="video/mp4"
+              />
+              Your browser does not support the video tag.
+            </video>
+            <button
+              type="button"
+              onClick={async () => {
+                const url = question.permalink.startsWith('http')
+                  ? question.permalink
+                  : `https://www.reddit.com${question.permalink}`;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setVideoUrlCopied(true);
+                  setTimeout(() => setVideoUrlCopied(false), 3000);
+                } catch {
+                  navigateTo(url);
+                }
+              }}
+              data-video-fallback
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-black/80 text-white font-medium transition-colors hover:bg-black/90 cursor-pointer border-0"
+            >
+              <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+              </svg>
+              {videoUrlCopied ? 'URL copied! Paste in a new tab to watch' : 'Tap to copy video URL'}
+            </button>
+          </div>
         )}
 
         {question.videoEmbedUrl && (
           <div className="mb-4">
-            <a
-              href={question.url ?? question.videoEmbedUrl.replace('/embed/', '/watch?v=')}
-              onClick={(e) => {
-                e.preventDefault();
-                navigateTo(question.url ?? question.videoEmbedUrl!.replace('/embed/', '/watch?v='));
+            <button
+              type="button"
+              onClick={async () => {
+                const url = question.url ?? question.videoEmbedUrl!.replace('/embed/', '/watch?v=');
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setVideoUrlCopied(true);
+                  setTimeout(() => setVideoUrlCopied(false), 3000);
+                } catch {
+                  navigateTo(url);
+                }
               }}
-              className="flex items-center justify-center gap-2 w-full py-4 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
+              className="flex items-center justify-center gap-2 w-full py-4 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors border-0 cursor-pointer"
             >
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
               </svg>
-              Watch video on YouTube
-            </a>
+              {videoUrlCopied ? 'URL copied! Paste in a new tab to watch' : 'Tap to copy video URL'}
+            </button>
           </div>
         )}
 

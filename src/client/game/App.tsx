@@ -71,7 +71,6 @@ export const App = () => {
 
         // Retry logic for retryable errors
         if (errorData.retryable && retryAttempt < 2) {
-          console.log(`Retrying quiz load (attempt ${retryAttempt + 1}/2)...`);
           await new Promise((resolve) => setTimeout(resolve, 1000 * (retryAttempt + 1))); // Exponential backoff
           return loadQuiz(subreddit, retryAttempt + 1);
         }

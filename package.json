@@ -20,6 +20,7 @@
     "lint:fix": "eslint --fix ./src",
     "login": "devvit login",
     "next-subreddit": "node scripts/next-subreddit.mjs",
+    "clear-cache": "dotenv -e .env -- node scripts/clear-cache.mjs",
     "prettier": "prettier-package-json --write ./package.json && prettier --write .",
     "type-check": "tsc --build"
   },

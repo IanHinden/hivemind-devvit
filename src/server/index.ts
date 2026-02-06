@@ -121,10 +121,39 @@ router.post('/internal/scheduled/daily-post', async (_req, res): Promise<void> =
   }
 });
 
-// Clear cache endpoint (for admin/testing purposes)
+// Clear cache endpoint (admin only; requires ?key=ADMIN_SECRET)
+// POST with body { subreddit?: string } or GET with ?subreddit=name
 router.post('/api/clear-cache', async (req, res): Promise<void> => {
+  if (!requireAdminSecret(req, res)) return;
   try {
     const { subreddit } = req.body as { subreddit?: string };
+
+    if (subreddit) {
+      await clearCachedQuiz(subreddit);
+      res.json({
+        status: 'success',
+        message: `Cache cleared for r/${subreddit}`,
+      });
+    } else {
+      await clearAllQuizCaches();
+      res.json({
+        status: 'success',
+        message: 'All quiz caches cleared',
+      });
+    }
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Failed to clear cache',
+    });
+  }
+});
+
+router.get('/api/clear-cache', async (req, res): Promise<void> => {
+  if (!requireAdminSecret(req, res)) return;
+  try {
+    const subreddit = req.query.subreddit as string | undefined;
 
     if (subreddit) {
       await clearCachedQuiz(subreddit);
