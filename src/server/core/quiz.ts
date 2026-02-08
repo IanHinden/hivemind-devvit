@@ -88,12 +88,14 @@ async function fetchPostCommentsWithDevvitAPI(
           comment.body !== '[removed]' &&
           comment.body !== ''
         ) {
+          const gifUrl = extractCommentMediaUrl(comment.body, comment);
           const transformed: RedditComment['data'] = {
             id: comment.id || '',
             body: comment.body || '',
             ups: comment.ups || comment.score || 0,
             author: comment.author || comment.authorName || null,
             score: comment.score || comment.ups || 0,
+            ...(gifUrl && { gifUrl }),
           };
 
           // Add replies if they exist
@@ -183,9 +185,60 @@ type RedditComment = {
     ups: number;
     author: string | null;
     score: number;
+    /** Direct URL to embedded GIF/image (extracted from body or media) */
+    gifUrl?: string | null;
     replies?: RedditCommentListing;
   };
 };
+
+/**
+ * Extract first image/GIF URL from comment body or media.
+ * Supports: direct image links, Imgur, GIPHY media, markdown ![alt](url).
+ */
+function extractCommentMediaUrl(body: string, comment?: { media?: unknown; gif?: unknown }): string | null {
+  // Devvit/Reddit may expose media directly
+  const media = comment?.media ?? comment?.gif;
+  if (media && typeof media === 'object') {
+    const m = media as Record<string, unknown>;
+    const url =
+      (m.url as string) ??
+      (m.src as string) ??
+      (m.gif as string) ??
+      (typeof m.oembed === 'object' && m.oembed && (m.oembed as Record<string, unknown>).url as string);
+    if (url && typeof url === 'string' && /^https?:\/\//i.test(url)) return url;
+  }
+  if (typeof media === 'string' && /^https?:\/\//i.test(media)) return media;
+
+  // Extract from body: direct image URLs, Imgur, GIPHY media
+  const patterns: Array<{ re: RegExp; transform?: (url: string) => string }> = [
+    { re: /!\[[^\]]*\]\((https?:\/\/[^)\s]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^)\s]*)?)\)/i },
+    { re: /\[[^\]]*\]\((https?:\/\/[^)\s]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^)\s]*)?)\)/i },
+    { re: /(https?:\/\/[^\s<>"']+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^\s<>"']*)?)/gi },
+    { re: /(https?:\/\/i\.imgur\.com\/[a-zA-Z0-9]+(?:\.[a-z]+)?(?:\?[^\s<>"')]*)?)/gi },
+    { re: /(https?:\/\/(?:media\d?\.giphy\.com|i\.giphy\.com)\/media\/[a-zA-Z0-9]+\/giphy\.gif)/gi },
+    // giphy.com/gifs/slug or giphy.com/gifs/category-slug-id – use last path segment as media ID
+    {
+      re: /https?:\/\/giphy\.com\/gifs\/[^\s<>"')]+/gi,
+      transform: (url) => {
+        const id = url.split('/').filter(Boolean).pop()?.split('?')[0];
+        return id ? `https://media.giphy.com/media/${id}/giphy.gif` : url;
+      },
+    },
+  ];
+  for (const { re, transform } of patterns) {
+    const m = body.match(re);
+    if (m) {
+      const raw = (m[1] ?? m[0]) as string;
+      let url = raw.replace(/&amp;/g, '&').trim();
+      if (transform) url = transform(url);
+      const base = url.split('?')[0] ?? url;
+      const isImageExt = /\.(gif|png|jpg|jpeg|webp)$/i.test(base);
+      const isImgurOrGiphy = /(?:i\.)?imgur\.com|giphy\.com/i.test(url);
+      if (url && (isImageExt || isImgurOrGiphy)) return url;
+    }
+  }
+  return null;
+}
 
 type RedditCommentListing = {
   data: {
@@ -430,6 +483,7 @@ export function transformToQuizFormat(
         body: comment.body,
         ups: comment.ups,
         author: comment.author,
+        ...(comment.gifUrl && { gifUrl: comment.gifUrl }),
       })),
     };
 

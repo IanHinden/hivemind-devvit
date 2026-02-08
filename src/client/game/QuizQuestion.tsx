@@ -232,6 +232,15 @@ export const QuizQuestionComponent = ({
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
+                  {comment.gifUrl && (
+                    <div className="mb-2">
+                      <img
+                        src={comment.gifUrl}
+                        alt="Comment media"
+                        className="max-h-32 max-w-full rounded object-contain"
+                      />
+                    </div>
+                  )}
                   <p className="text-sm font-medium mb-1">
                     {comment.body.length > 200
                       ? `${comment.body.substring(0, 200)}...`
