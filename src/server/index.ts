@@ -508,12 +508,13 @@ router.post('/api/report-post', async (req, res): Promise<void> => {
 // POST /api/share-score - Share user's score as a comment on the post
 router.post('/api/share-score', async (req, res): Promise<void> => {
   try {
-    const { postId, score, totalQuestions, subreddit, strategy } = req.body as {
+    const { postId, score, totalQuestions, subreddit, strategy, question } = req.body as {
       postId?: string;
       score: number;
       totalQuestions: number;
       subreddit: string;
       strategy?: string;
+      question?: string;
     };
 
     // Validate required fields and types
@@ -543,7 +544,8 @@ router.post('/api/share-score', async (req, res): Promise<void> => {
 
     const percentage = Math.round((score / totalQuestions) * 100);
     const scoreText = `I scored ${score}/${totalQuestions} (${percentage}%) on today's How Hivemind r/ You? challenge for r/${subreddit}!`;
-    const commentText = `${scoreText}\n\n**What was your strategy?**\n\n${strategy.trim()}`;
+    const prompt = question && typeof question === 'string' && question.trim() ? question.trim() : 'What was your strategy?';
+    const commentText = `${scoreText}\n\n**${prompt}**\n\n${strategy.trim()}`;
     const parentId = (postId.startsWith('t3_') ? postId : `t3_${postId}`) as `t3_${string}`;
 
     await reddit.submitComment({ id: parentId, text: commentText, runAs: 'USER' });

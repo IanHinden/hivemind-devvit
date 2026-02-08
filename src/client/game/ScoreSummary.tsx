@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { context, navigateTo } from '@devvit/web/client';
 
+const DISCUSSION_QUESTIONS = [
+  'What was your strategy?',
+  'Which question was hardest?',
+  'Did any answer surprise you?',
+  "What's your go-to strategy for guessing the top comment?",
+  'Share a tip for future players.',
+  'Which subreddit would you add to the rotation?',
+  'What made you pick the answers you did?',
+] as const;
+
 type ScoreSummaryProps = {
   score: number;
   totalQuestions: number;
@@ -64,6 +74,10 @@ export const ScoreSummary = ({
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [subscribeSuccess, setSubscribeSuccess] = useState(false);
   const [strategyText, setStrategyText] = useState('');
+  const [discussionQuestion] = useState(
+    () =>
+      DISCUSSION_QUESTIONS[Math.floor(Math.random() * DISCUSSION_QUESTIONS.length)] ?? 'What was your strategy?'
+  );
 
   const postId = context?.postId;
   // Subscribe to the game's subreddit, not the daily challenge subreddit
@@ -96,6 +110,7 @@ export const ScoreSummary = ({
           totalQuestions: totalQuestions,
           subreddit: subreddit,
           strategy: strategyText.trim(),
+          question: discussionQuestion,
         }),
       });
 
@@ -226,7 +241,7 @@ export const ScoreSummary = ({
               <textarea
                 value={strategyText}
                 onChange={(e) => setStrategyText(e.target.value)}
-                placeholder="What was your strategy?"
+                placeholder={discussionQuestion}
                 className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:outline-none resize-none text-sm"
                 rows={3}
                 disabled={shareLoading || shareSuccess}
