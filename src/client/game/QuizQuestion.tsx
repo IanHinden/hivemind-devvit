@@ -79,8 +79,8 @@ export const QuizQuestionComponent = ({
     onAnswer(correct);
 
     const msg = correct
-      ? WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)]
-      : LOSE_MESSAGES[Math.floor(Math.random() * LOSE_MESSAGES.length)];
+      ? WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)] ?? 'Correct!'
+      : LOSE_MESSAGES[Math.floor(Math.random() * LOSE_MESSAGES.length)] ?? 'Not quite.';
     setResultMessage(msg);
   };
 

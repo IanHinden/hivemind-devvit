@@ -40,9 +40,9 @@ If you spend time on Reddit and like guessing games, this is for you. No account
 
 > Make sure you have Node 22 downloaded on your machine before running!
 
-1. Run `npm create devvit@latest --template=react`
-2. Go through the installation wizard. You will need to create a Reddit account and connect it to Reddit developers
-3. Copy the command on the success page into your terminal
+1. Clone the repo and run `npm install`
+2. Run `npm run login` to connect your Reddit account (create one at [reddit.com](https://reddit.com) if needed)
+3. Run `npm run dev` to start the development server and open the playtest URL in your browser
 
 ## Commands
 

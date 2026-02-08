@@ -6,8 +6,11 @@ import type {
   ErrorResponse,
   DailySubredditResponse,
 } from '../../shared/types/api';
+import { APPROVED_SUBREDDITS } from '../../shared/config/subreddits';
 import { QuizQuestionComponent } from './QuizQuestion';
 import { ScoreSummary } from './ScoreSummary';
+
+const FALLBACK_SUBREDDIT = APPROVED_SUBREDDITS[0] ?? 'Unexpected';
 
 export const App = () => {
   const [dailySubreddit, setDailySubreddit] = useState<string | null>(null);
@@ -36,13 +39,11 @@ export const App = () => {
           const data: DailySubredditResponse = await response.json();
           setDailySubreddit(data.subreddit);
         } else {
-          // Fallback to AskReddit if API fails
-          setDailySubreddit('AskReddit');
+          setDailySubreddit(FALLBACK_SUBREDDIT);
         }
       } catch (err) {
         console.error('Failed to fetch daily subreddit:', err);
-        // Fallback to AskReddit if API fails
-        setDailySubreddit('AskReddit');
+        setDailySubreddit(FALLBACK_SUBREDDIT);
       }
     };
     void fetchDailySubreddit();
