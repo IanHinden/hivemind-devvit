@@ -2,6 +2,23 @@ import React, { useState, useMemo } from 'react';
 import { context, navigateTo } from '@devvit/web/client';
 import type { QuizQuestion } from '../../shared/types/api';
 
+const WIN_MESSAGES = [
+  "Nice! But that was an easy one. Even I knew that one.",
+  "Great job! Give yourself an upvote.",
+  "Wonderful! Your karma is on the rise.",
+  "Awesome! (Edit: Wow, this blew up!)",
+  "Great! Username checks out!",
+];
+
+const LOSE_MESSAGES = [
+  "Incorrect. The hivemind has spoken differently!",
+  "Sorry, the upvotes went another way!",
+  "Incorrect. The algorithm is an untamed beast.",
+  "Wrong. Go back to making dragon MMOs, kid.",
+  "Too bad, the upvote button is a cruel mistress!",
+  "Incorrect. Your thinking is stuck in a cylinder.",
+];
+
 type QuizQuestionProps = {
   question: QuizQuestion;
   onAnswer: (isCorrect: boolean) => void;
@@ -18,6 +35,7 @@ export const QuizQuestionComponent = ({
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [urlCopied, setUrlCopied] = useState(false);
   const [videoUrlCopied, setVideoUrlCopied] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
@@ -59,6 +77,11 @@ export const QuizQuestionComponent = ({
     const correct = commentId === topCommentId;
     setIsCorrect(correct);
     onAnswer(correct);
+
+    const msg = correct
+      ? WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)]
+      : LOSE_MESSAGES[Math.floor(Math.random() * LOSE_MESSAGES.length)];
+    setResultMessage(msg);
   };
 
   const handleReportInappropriate = async () => {
@@ -268,13 +291,18 @@ export const QuizQuestionComponent = ({
       {/* Feedback */}
       {showAnswer && (
         <div className="mb-6 p-4 rounded-lg bg-gray-50">
-          {isCorrect ? (
-            <p className="text-green-700 font-semibold text-center">
-              🎉 Correct! That's the top comment!
-            </p>
-          ) : (
-            <p className="text-red-700 font-semibold text-center">
-              ❌ Not quite. The top comment was: "{topComment.body.substring(0, 100)}..."
+          <p
+            className={`font-semibold text-center ${
+              isCorrect ? 'text-green-700' : 'text-red-700'
+            }`}
+          >
+            {isCorrect ? '🎉 ' : '❌ '}
+            {resultMessage ?? (isCorrect ? "Correct! That's the top comment!" : 'Not quite.')}
+          </p>
+          {!isCorrect && (
+            <p className="text-gray-600 text-sm text-center mt-2">
+              The top comment was: &quot;{topComment.body.substring(0, 80)}
+              {topComment.body.length > 80 ? '...' : ''}&quot;
             </p>
           )}
 

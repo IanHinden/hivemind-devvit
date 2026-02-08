@@ -137,15 +137,71 @@ export const ScoreSummary = ({
     }
   };
 
-  // Determine message based on score
-  const getScoreMessage = () => {
+  // Reddit personality messages (from web version)
+  const getScoreDisplay = () => {
     const percentage = Math.round((score / totalQuestions) * 100);
-    if (percentage === 100) return "Perfect score! You're a Reddit hivemind master!";
-    if (percentage >= 80) return 'Excellent! You really understand the Reddit hivemind!';
-    if (percentage >= 60) return "Great job! You're getting the hang of it!";
-    if (percentage >= 40) return 'Not bad! Keep practicing!';
-    return 'Keep trying! The hivemind is tricky!';
+    type Display = { message: string; color: string };
+    let display: Display;
+
+    if (percentage === 0) {
+      display = {
+        message:
+          "Do you remember that scene in Enter the Spiderverse where Miles gets a 0 on the test on purpose? I'm just saying it's a bit suspicious... Like, statistically, you should have gotten at least one correct.",
+        color: 'text-red-500',
+      };
+    } else if (percentage <= 12.5) {
+      display = {
+        message:
+          "The bad news: you don't think like a Redditor. The good news: you don't think like a Redditor.",
+        color: 'text-red-500',
+      };
+    } else if (percentage <= 25) {
+      display = {
+        message:
+          "That wasn't great. ARE YOU FUCKING SORRY!? The worst part is you don't even know what I'm talking about.",
+        color: 'text-red-400',
+      };
+    } else if (percentage <= 37.5) {
+      display = {
+        message:
+          'You need to work harder. Get off the time-wasting social media sites and get on the time-wasting news aggregate.',
+        color: 'text-orange-500',
+      };
+    } else if (percentage <= 50) {
+      display = {
+        message: "Pretty average! You're doing about this well. (Note: I'm holding up a banana)",
+        color: 'text-blue-600',
+      };
+    } else if (percentage <= 62.5) {
+      display = {
+        message:
+          "Keep trying! I know you want to be a Redditor, but unfortunately, you're still a normie. Go home and be a family person.",
+        color: 'text-green-500',
+      };
+    } else if (percentage <= 75) {
+      display = {
+        message:
+          "Great! I can only assume you already checked Reddit this morning when you woke up! Studies show that's bad for your health, but it's good for this quiz!",
+        color: 'text-green-600',
+      };
+    } else if (percentage === 87.5) {
+      display = {
+        message:
+          '¡Muy bien! ¡Tienes un buen sentido de la cultura de Reddit! Espera, ¿cómo puedo volver a ponerlo en inglés?',
+        color: 'text-purple-600',
+      };
+    } else {
+      display = {
+        message:
+          "Wow. It was nice of you to find time in between moderating all those subreddits to take this quiz. You are the ultimate Redditor, a being of pure fedora. You have the soul of a Redditor in place of the soul of um a regular person. You narwhal all your bacons at midnight and everything else that goes with that.",
+        color: 'text-green-600',
+      };
+    }
+
+    return display;
   };
+
+  const scoreDisplay = getScoreDisplay();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 flex items-center justify-center p-4 relative">
@@ -156,10 +212,12 @@ export const ScoreSummary = ({
           {/* Score Display */}
           <div className="mb-4">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
-            <div className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mb-2">
+            <div className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent mb-3">
               {score}/{totalQuestions}
             </div>
-            <p className="text-gray-700 text-sm leading-relaxed">{getScoreMessage()}</p>
+            <p className={`text-sm font-semibold ${scoreDisplay.color} leading-relaxed`}>
+              {scoreDisplay.message}
+            </p>
           </div>
 
           {/* Share Score Form - only on first completion; after Play Again, score is locked in */}
