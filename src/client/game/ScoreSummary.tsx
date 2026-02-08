@@ -76,7 +76,8 @@ export const ScoreSummary = ({
   const [strategyText, setStrategyText] = useState('');
   const [discussionQuestion] = useState(
     () =>
-      DISCUSSION_QUESTIONS[Math.floor(Math.random() * DISCUSSION_QUESTIONS.length)] ?? 'What was your strategy?'
+      DISCUSSION_QUESTIONS[Math.floor(Math.random() * DISCUSSION_QUESTIONS.length)] ??
+      'What was your strategy?'
   );
 
   const postId = context?.postId;
@@ -208,7 +209,7 @@ export const ScoreSummary = ({
     } else {
       display = {
         message:
-          "Wow. It was nice of you to find time in between moderating all those subreddits to take this quiz. You are the ultimate Redditor, a being of pure fedora. You have the soul of a Redditor in place of the soul of um a regular person. You narwhal all your bacons at midnight and everything else that goes with that.",
+          'Wow. It was nice of you to find time in between moderating all those subreddits to take this quiz. You are the ultimate Redditor, a being of pure fedora. You have the soul of a Redditor in place of the soul of um a regular person. You narwhal all your bacons at midnight and everything else that goes with that.',
         color: 'text-green-600',
       };
     }

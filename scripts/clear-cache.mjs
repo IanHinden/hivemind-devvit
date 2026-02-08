@@ -36,6 +36,8 @@ for (const port of ports) {
     lastErr = err;
   }
 }
-console.error('Failed to clear cache. Ensure ADMIN_SECRET is set in .env and the server is running.');
+console.error(
+  'Failed to clear cache. Ensure ADMIN_SECRET is set in .env and the server is running.'
+);
 console.error(lastErr?.message ?? '');
 process.exit(1);

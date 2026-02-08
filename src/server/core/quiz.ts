@@ -195,7 +195,10 @@ type RedditComment = {
  * Extract first image/GIF URL from comment body or media.
  * Supports: direct image links, Imgur, GIPHY media, markdown ![alt](url).
  */
-function extractCommentMediaUrl(body: string, comment?: { media?: unknown; gif?: unknown }): string | null {
+function extractCommentMediaUrl(
+  body: string,
+  comment?: { media?: unknown; gif?: unknown }
+): string | null {
   // Devvit/Reddit may expose media directly
   const media = comment?.media ?? comment?.gif;
   if (media && typeof media === 'object') {
@@ -204,7 +207,9 @@ function extractCommentMediaUrl(body: string, comment?: { media?: unknown; gif?:
       (m.url as string) ??
       (m.src as string) ??
       (m.gif as string) ??
-      (typeof m.oembed === 'object' && m.oembed && (m.oembed as Record<string, unknown>).url as string);
+      (typeof m.oembed === 'object' &&
+        m.oembed &&
+        ((m.oembed as Record<string, unknown>).url as string));
     if (url && typeof url === 'string' && /^https?:\/\//i.test(url)) return url;
   }
   if (typeof media === 'string' && /^https?:\/\//i.test(media)) return media;
@@ -215,7 +220,9 @@ function extractCommentMediaUrl(body: string, comment?: { media?: unknown; gif?:
     { re: /\[[^\]]*\]\((https?:\/\/[^)\s]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^)\s]*)?)\)/i },
     { re: /(https?:\/\/[^\s<>"']+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^\s<>"']*)?)/gi },
     { re: /(https?:\/\/i\.imgur\.com\/[a-zA-Z0-9]+(?:\.[a-z]+)?(?:\?[^\s<>"')]*)?)/gi },
-    { re: /(https?:\/\/(?:media\d?\.giphy\.com|i\.giphy\.com)\/media\/[a-zA-Z0-9]+\/giphy\.gif)/gi },
+    {
+      re: /(https?:\/\/(?:media\d?\.giphy\.com|i\.giphy\.com)\/media\/[a-zA-Z0-9]+\/giphy\.gif)/gi,
+    },
     // giphy.com/gifs/slug or giphy.com/gifs/category-slug-id – use last path segment as media ID
     {
       re: /https?:\/\/giphy\.com\/gifs\/[^\s<>"')]+/gi,

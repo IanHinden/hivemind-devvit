@@ -544,7 +544,10 @@ router.post('/api/share-score', async (req, res): Promise<void> => {
 
     const percentage = Math.round((score / totalQuestions) * 100);
     const scoreText = `I scored ${score}/${totalQuestions} (${percentage}%) on today's How Hivemind r/ You? challenge for r/${subreddit}!`;
-    const prompt = question && typeof question === 'string' && question.trim() ? question.trim() : 'What was your strategy?';
+    const prompt =
+      question && typeof question === 'string' && question.trim()
+        ? question.trim()
+        : 'What was your strategy?';
     const commentText = `${scoreText}\n\n**${prompt}**\n\n${strategy.trim()}`;
     const parentId = (postId.startsWith('t3_') ? postId : `t3_${postId}`) as `t3_${string}`;
 

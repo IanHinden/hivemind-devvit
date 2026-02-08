@@ -9,6 +9,7 @@
     "build:client": "cd src/client && vite build",
     "build:server": "cd src/server && vite build",
     "check": "npm run type-check && npm run lint:fix && npm run prettier",
+    "clear-cache": "dotenv -e .env -- node scripts/clear-cache.mjs",
     "deploy": "npm run build && devvit upload",
     "dev": "concurrently -k -p \"[{name}]\" -n \"CLIENT,SERVER,DEVVIT\" -c \"blue,green,magenta\" \"npm run dev:client\" \"npm run dev:server\" \"npm run dev:devvit\"",
     "dev:client": "cd src/client && vite build --watch",
@@ -20,7 +21,6 @@
     "lint:fix": "eslint --fix ./src",
     "login": "devvit login",
     "next-subreddit": "node scripts/next-subreddit.mjs",
-    "clear-cache": "dotenv -e .env -- node scripts/clear-cache.mjs",
     "prettier": "prettier-package-json --write ./package.json && prettier --write .",
     "type-check": "tsc --build"
   },

@@ -3,20 +3,20 @@ import { context, navigateTo } from '@devvit/web/client';
 import type { QuizQuestion } from '../../shared/types/api';
 
 const WIN_MESSAGES = [
-  "Nice! But that was an easy one. Even I knew that one.",
-  "Great job! Give yourself an upvote.",
-  "Wonderful! Your karma is on the rise.",
-  "Awesome! (Edit: Wow, this blew up!)",
-  "Great! Username checks out!",
+  'Nice! But that was an easy one. Even I knew that one.',
+  'Great job! Give yourself an upvote.',
+  'Wonderful! Your karma is on the rise.',
+  'Awesome! (Edit: Wow, this blew up!)',
+  'Great! Username checks out!',
 ];
 
 const LOSE_MESSAGES = [
-  "Incorrect. The hivemind has spoken differently!",
-  "Sorry, the upvotes went another way!",
-  "Incorrect. The algorithm is an untamed beast.",
-  "Wrong. Go back to making dragon MMOs, kid.",
-  "Too bad, the upvote button is a cruel mistress!",
-  "Incorrect. Your thinking is stuck in a cylinder.",
+  'Incorrect. The hivemind has spoken differently!',
+  'Sorry, the upvotes went another way!',
+  'Incorrect. The algorithm is an untamed beast.',
+  'Wrong. Go back to making dragon MMOs, kid.',
+  'Too bad, the upvote button is a cruel mistress!',
+  'Incorrect. Your thinking is stuck in a cylinder.',
 ];
 
 type QuizQuestionProps = {
@@ -79,8 +79,8 @@ export const QuizQuestionComponent = ({
     onAnswer(correct);
 
     const msg = correct
-      ? WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)] ?? 'Correct!'
-      : LOSE_MESSAGES[Math.floor(Math.random() * LOSE_MESSAGES.length)] ?? 'Not quite.';
+      ? (WIN_MESSAGES[Math.floor(Math.random() * WIN_MESSAGES.length)] ?? 'Correct!')
+      : (LOSE_MESSAGES[Math.floor(Math.random() * LOSE_MESSAGES.length)] ?? 'Not quite.');
     setResultMessage(msg);
   };
 
@@ -154,11 +154,13 @@ export const QuizQuestionComponent = ({
               crossOrigin="anonymous"
               className="max-w-full max-h-64 rounded-lg bg-black w-full"
               onCanPlay={(e) => {
-                const fallback = e.currentTarget.parentElement?.querySelector('[data-video-fallback]');
+                const fallback =
+                  e.currentTarget.parentElement?.querySelector('[data-video-fallback]');
                 if (fallback) (fallback as HTMLElement).classList.add('hidden');
               }}
               onError={(e) => {
-                const fallback = e.currentTarget.parentElement?.querySelector('[data-video-fallback]');
+                const fallback =
+                  e.currentTarget.parentElement?.querySelector('[data-video-fallback]');
                 if (fallback) (fallback as HTMLElement).classList.remove('hidden');
               }}
             >
@@ -292,11 +294,8 @@ export const QuizQuestionComponent = ({
       {showAnswer && (
         <div className="mb-6 p-4 rounded-lg bg-gray-50">
           <p
-            className={`font-semibold text-center ${
-              isCorrect ? 'text-green-700' : 'text-red-700'
-            }`}
+            className={`font-semibold text-center ${isCorrect ? 'text-green-700' : 'text-red-700'}`}
           >
-            {isCorrect ? '🎉 ' : '❌ '}
             {resultMessage ?? (isCorrect ? "Correct! That's the top comment!" : 'Not quite.')}
           </p>
           {!isCorrect && (
