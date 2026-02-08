@@ -1,6 +1,33 @@
-## Devvit React Starter
+# How Hivemind r/ You?
 
-A starter to build web applications on Reddit's developer platform
+A Reddit quiz game that tests how well you know the hivemind. Can you guess the top comment?
+
+## Overview
+
+**How Hivemind r/ You?** is a daily quiz app that runs inside Reddit posts. Each day features a different subreddit from our curated list. You’ll see a Reddit post with three comment options—your job is to pick the one that got the most upvotes.
+
+### How to Play
+
+1. Open the app from a post in r/how_hivemind_r_u
+2. Read the post (image, video, or text) and the three comment options
+3. Tap the comment you think is the top-voted one
+4. See if you were right and get Reddit-flavored feedback
+5. Complete all 5 questions to see your score and share it in the comments
+
+### Features
+
+- **Daily challenge** – A new subreddit each day (e.g. r/Unexpected, r/rareinsults, r/ihadastroke)
+- **5 questions per quiz** – Short, focused rounds
+- **Share your score** – Post your score and strategy to the thread
+- **Subscribe** – One-tap subscribe to r/how_hivemind_r_u for new daily posts
+
+### For Reddit Users
+
+If you spend time on Reddit and like guessing games, this is for you. No account setup required—just open the post and play.
+
+---
+
+## Tech Stack (Developers)
 
 - [Devvit](https://developers.reddit.com/): A way to build and deploy immersive games on Reddit
 - [Vite](https://vite.dev/): For compiling the webView
