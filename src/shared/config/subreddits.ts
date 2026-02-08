@@ -2,7 +2,7 @@
  * Approved subreddits for daily quiz rotation
  * These subreddits are curated to ensure quality content and appropriate topics
  */
-export const APPROVED_SUBREDDITS = [ "BrandNewSentence", "rareinsults", "ihadastroke", "technicallythetruth", "PointlessStories", "FirstWorldProblems", "Unexpected", "CrappyDesign", "therewasanattempt" ] as const;
+export const APPROVED_SUBREDDITS = [ "BrandNewSentence", "technicallythetruth", "ihadastroke", "rareinsults", "PointlessStories", "FirstWorldProblems", "Unexpected", "CrappyDesign", "therewasanattempt" ] as const;
 
 export type ApprovedSubreddit = (typeof APPROVED_SUBREDDITS)[number];
 
