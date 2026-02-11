@@ -9,7 +9,7 @@
         "entry": "splash.html"
       },
       "game": {
-        "inline": true,
+        "inline": false,
         "entry": "game.html"
       }
     }

@@ -8,7 +8,7 @@ A Reddit quiz game that tests how well you know the hivemind. Can you guess the 
 
 ### How to Play
 
-1. Open the app from a post in r/how_hivemind_r_u
+1. Open the app from a post in r/AreYouHivemind
 2. Read the post (image, video, or text) and the three comment options
 3. Tap the comment you think is the top-voted one
 4. See if you were right and get Reddit-flavored feedback
@@ -19,7 +19,7 @@ A Reddit quiz game that tests how well you know the hivemind. Can you guess the 
 - **Daily challenge** – A new subreddit each day (e.g. r/Unexpected, r/rareinsults, r/ihadastroke)
 - **5 questions per quiz** – Short, focused rounds
 - **Share your score** – Post your score and strategy to the thread
-- **Subscribe** – One-tap subscribe to r/how_hivemind_r_u for new daily posts
+- **Subscribe** – One-tap subscribe to r/AreYouHivemind for new daily posts
 
 ### For Reddit Users
 

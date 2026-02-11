@@ -1,3 +1,6 @@
+/** Official subreddit for the game (subscribe button, community link) */
+export const OFFICIAL_SUBREDDIT = 'AreYouHivemind';
+
 /**
  * Approved subreddits for daily quiz rotation
  * These subreddits are curated to ensure quality content and appropriate topics

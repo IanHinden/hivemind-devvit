@@ -8,7 +8,16 @@ export const createPost = async (subreddit?: ApprovedSubreddit) => {
 
   const post = await reddit.submitCustomPost({
     title: `How Hivemind r/ You? - Today's Challenge: r/${dailySubreddit}`,
-    entry: 'game', // Go directly to game, no splash screen
+    entry: 'game',
+    splash: {
+      appDisplayName: 'How Hivemind r/ You?',
+      heading: "Today's Challenge",
+      description: `Guess the top comment on recent r/${dailySubreddit} posts. Tap to play.`,
+      buttonLabel: 'Play now',
+      entryUri: 'game.html',
+      backgroundUri: 'hivemind-pattern.png',
+      appIconUri: 'hivemind-icon.png',
+    },
   });
 
   // Auto-approve the post so it doesn't require manual moderation

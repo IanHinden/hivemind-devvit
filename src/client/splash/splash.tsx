@@ -7,50 +7,54 @@ import { createRoot } from 'react-dom/client';
 
 export const Splash = () => {
   return (
-    <div className="flex relative flex-col justify-center items-center min-h-screen gap-4">
-      <img
-        className="object-contain w-1/2 max-w-[250px] mx-auto"
-        src="/logo.png"
-        alt="How Hivemind r/ You?"
-        loading="eager"
-        decoding="async"
-      />
-      <div className="flex flex-col items-center gap-2">
-        <h1 className="text-2xl font-bold text-center text-gray-900 ">How Hivemind r/ You?</h1>
-        <p className="text-base text-center text-gray-600 ">
-          Can you guess the top comment on recent Reddit posts?
-        </p>
-      </div>
-      <div className="flex items-center justify-center mt-5">
+    <div className="min-h-full h-full overflow-hidden touch-none flex flex-col bg-gradient-to-br from-orange-50 via-white to-red-50">
+      {/* Main card area - fills viewport, stays non-scrollable */}
+      <div className="flex flex-1 flex-col justify-center items-center gap-4 px-5 py-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <img
+            className="object-contain w-28 h-28 drop-shadow-sm"
+            src="/logo.png"
+            alt=""
+            loading="eager"
+            decoding="async"
+          />
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            How Hivemind r/ You?
+          </h1>
+          <p className="text-sm text-gray-600 max-w-[260px] leading-snug">
+            Guess the top comment on recent Reddit posts. Tap below to play.
+          </p>
+        </div>
         <button
-          className="flex items-center justify-center bg-[#d93900] text-white w-auto h-10 rounded-full cursor-pointer transition-colors px-4"
+          className="mt-1 flex items-center justify-center bg-[#d93900] hover:bg-[#c23300] active:scale-[0.98] text-white font-semibold text-base w-full max-w-[240px] h-12 rounded-full cursor-pointer transition-colors shadow-md"
           onClick={(e) => requestExpandedMode(e.nativeEvent, 'game')}
         >
-          Tap to Start
+          Play now
         </button>
       </div>
-      <footer className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 text-[0.8em] text-gray-600">
+      {/* Compact footer - no scroll, just a single line */}
+      <div className="shrink-0 flex items-center justify-center gap-2 py-2 text-[0.7rem] text-gray-500 border-t border-gray-100">
         <button
-          className="cursor-pointer"
+          className="cursor-pointer hover:text-gray-700"
           onClick={() => navigateTo('https://developers.reddit.com/docs')}
         >
           Docs
         </button>
-        <span className="text-gray-300">|</span>
+        <span className="text-gray-300">·</span>
         <button
-          className="cursor-pointer"
+          className="cursor-pointer hover:text-gray-700"
           onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
         >
           r/Devvit
         </button>
-        <span className="text-gray-300">|</span>
+        <span className="text-gray-300">·</span>
         <button
-          className="cursor-pointer"
+          className="cursor-pointer hover:text-gray-700"
           onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
         >
           Discord
         </button>
-      </footer>
+      </div>
     </div>
   );
 };

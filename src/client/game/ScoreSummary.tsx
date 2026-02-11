@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { context, navigateTo } from '@devvit/web/client';
+import { OFFICIAL_SUBREDDIT } from '../../shared/config/subreddits';
 
 const DISCUSSION_QUESTIONS = [
   'What was your strategy?',
@@ -81,8 +82,9 @@ export const ScoreSummary = ({
   );
 
   const postId = context?.postId;
-  // Subscribe to the game's subreddit, not the daily challenge subreddit
-  const gameSubreddit = 'how_hivemind_r_u';
+  // subscribeToCurrentSubreddit() subscribes to the subreddit where the post lives — label must match
+  const currentSubreddit = (context as { subredditName?: string } | undefined)?.subredditName;
+  const subscribeSubredditLabel = currentSubreddit ?? OFFICIAL_SUBREDDIT;
 
   // Hide confetti after animation completes
   useEffect(() => {
@@ -331,7 +333,7 @@ export const ScoreSummary = ({
               ) : subscribeSuccess ? (
                 'Subscribed!'
               ) : (
-                `Subscribe to r/${gameSubreddit}`
+                `Subscribe to r/${subscribeSubredditLabel}`
               )}
             </button>
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full overflow-hidden">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,10 +7,43 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>devvit</title>
+    <title>How Hivemind r/ You?</title>
+    <style>
+      /* First-paint styles so our design shows immediately and covers Reddit's placeholder */
+      #root {
+        min-height: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(to bottom right, #fff7ed, #fff, #fff1f2);
+      }
+      #splash-first-paint {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem 1.25rem;
+        text-align: center;
+      }
+      #splash-first-paint img { width: 7rem; height: 7rem; object-fit: contain; }
+      #splash-first-paint h1 { font-size: 1.25rem; font-weight: 700; color: #111; margin: 0; }
+      #splash-first-paint p { font-size: 0.875rem; color: #4b5563; margin: 0; max-width: 260px; line-height: 1.4; }
+      #splash-first-paint .btn { margin-top: 0.25rem; width: 100%; max-width: 240px; height: 3rem; border-radius: 9999px; background: #d93900; color: #fff; font-weight: 600; font-size: 1rem; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    </style>
   </head>
-  <body class="h-full">
-    <div id="root" class="h-full"></div>
+  <body class="h-full overflow-hidden touch-none" style="background: linear-gradient(to bottom right, #fff7ed, #fff, #fff1f2);">
+    <div id="root" class="h-full overflow-hidden">
+      <!-- First-paint splash: visible before React loads, covers Reddit's placeholder -->
+      <div id="splash-first-paint">
+        <img src="/logo.png" alt="" width="112" height="112" loading="eager" decoding="async" />
+        <h1>How Hivemind r/ You?</h1>
+        <p>Guess the top comment on recent Reddit posts. Tap below to play.</p>
+        <div class="btn" aria-hidden="true">Play now</div>
+      </div>
+    </div>
     <script type="module" src="splash/splash.tsx"></script>
   </body>
 </html>
